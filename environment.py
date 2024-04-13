@@ -20,7 +20,7 @@ class BeaconEnv(Env):
 
         # Randomly set populations and genes
         self.s_beacon, self.s_control, self.a_control, self.victim, self.mafs = self.get_populations()
-        self.reset_counter = 0
+        self.reset_counter = -1
 
         # Initialize the agents
         self._init_attacker()
@@ -52,6 +52,8 @@ class BeaconEnv(Env):
         if self.reset_counter==self.args.pop_reset_freq:
             print("Reseting the Populations")
             self._reset_populations()
+            self.reset_counter = 0   
+
 
         # Reset the states of our agents
         self._init_attacker()
@@ -63,6 +65,7 @@ class BeaconEnv(Env):
         return self.attacker_state, self.beacon_state
 
     def step(self, beacon_action): 
+        beacon_action = np.clip(beacon_action, -1, 1)
         done = False
         # # Change the res of the asked gene to 1 in the state of beacon
         # if beacon_action > 0.5:
@@ -80,14 +83,18 @@ class BeaconEnv(Env):
 
         # Calculate the lrt for individuals in the beacon and find the min 
         self.altered_probs += beacon_action
-        reward = torch.exp(self._calc_beacon_reward()) - self.altered_probs
+        preward = torch.exp(self._calc_beacon_reward())
+        ureward = -1*self.altered_probs
+        print("preward: ", preward)
+        print("ureward: ", ureward)
+        reward = preward + ureward
 
         self.current_step += 1
         if self.current_step >= self.max_steps:
             done = True
 
         
-        return observation, reward, done, {}
+        return observation, reward, done, [preward, ureward]
 
     def _reset_populations(self)->None:
         self.s_beacon, self.s_control, self.a_control, self.victim, self.mafs = self.get_populations()
