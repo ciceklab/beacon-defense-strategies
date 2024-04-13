@@ -56,6 +56,8 @@ class BeaconEnv(Env):
         # Reset the states of our agents
         self._init_attacker()
         self._init_beacon()
+
+        self.altered_probs = 0
         
         self.current_step = 0
         return self.attacker_state, self.beacon_state
@@ -130,18 +132,18 @@ class BeaconEnv(Env):
         # Difine different groups of people
         victim_ind = shuffled[0]
         a_cind = shuffled[1:1+self.args.control_size]
-        s_cind = shuffled[41:61]
+        s_cind = shuffled[1+self.args.control_size:1+self.args.control_size*2]
         # s_ind = shuffled[80:140]
 
 
         if np.random.random() < self.args.victim_prob:
             print("Victim is inside the Beacon!")
-            s_ind = shuffled[80:139]
+            s_ind = shuffled[1+self.args.control_size*2:self.args.control_size*2+self.args.beacon_size]
             s_ind = np.append(s_ind, victim_ind)
             s_beacon = self.binary[:, s_ind][genes, :] # Victim inside beacon
         else: 
             print("Victim is NOT inside the Beacon!")
-            s_ind = shuffled[80:140]
+            s_ind = shuffled[1+self.args.control_size*2:self.args.control_size*2+self.args.beacon_size+1]
             s_beacon = self.binary[:, s_ind][genes, :]
 
         a_control = self.binary[:, a_cind][genes, :]

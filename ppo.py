@@ -89,12 +89,12 @@ class ActorCritic(nn.Module):
         # state = torch.flatten(state)
 
         if self.has_continuous_action_space:
-            print("ACT state: ", state)
-            print("state size: ", state.size())
+            # print("ACT state: ", state)
+            # print("state size: ", state.size())
             action_mean = self.actor(state)
             cov_mat = torch.diag(self.action_var).unsqueeze(dim=0)
             # print(action_mean, cov_mat)
-            print("action_mean: ", action_mean, "cov_mat: ", cov_mat)
+            # print("action_mean: ", action_mean, "cov_mat: ", cov_mat)
 
             dist = MultivariateNormal(action_mean, cov_mat)
         else:
@@ -111,13 +111,13 @@ class ActorCritic(nn.Module):
     def evaluate(self, state, action):
 
         if self.has_continuous_action_space:
-            print("state: ", state)
-            print("state size: ", state.size())
+            # print("state: ", state)
+            # print("state size: ", state.size())
 
             action_mean = self.actor(state)
             action_var = self.action_var.expand_as(action_mean)
             cov_mat = torch.diag_embed(action_var).to(device)
-            print("action_mean: ", action_mean, "cov_mat: ", cov_mat)
+            # print("action_mean: ", action_mean, "cov_mat: ", cov_mat)
             dist = MultivariateNormal(action_mean, cov_mat)
 
             # for single action continuous environments
@@ -240,7 +240,7 @@ class PPO:
         old_logprobs = torch.squeeze(torch.stack(self.buffer.logprobs, dim=0)).detach().to(device)
         old_state_values = torch.squeeze(torch.stack(self.buffer.state_values, dim=0)).detach().to(device)
 
-        print("Old States: ", old_states.size())
+        # print("Old States: ", old_states.size())
 
         # calculate advantages
         advantages = rewards.detach() - old_state_values.detach()
