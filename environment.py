@@ -40,16 +40,12 @@ class BeaconEnv(Env):
         self.max_steps = args.max_queries  # Maximum number of steps per episode
         self.current_step = 0
 
-    def start(self):
-        self.attacker_action = np.random.randint(low=0, high=self.args.gene_size)
-        current_beacon_s = copy.deepcopy(self.beacon_state)
-        current_beacon_s[:, self.attacker_action, 3] = 1
-        return current_beacon_s, 0, False, {}
-
     # Reset the environment after an episode
     def reset(self) -> torch.Tensor:
         self.reset_counter+=1
-        if self.reset_counter==self.args.pop_reset_freq:
+
+
+        if self.reset_counter%self.args.pop_reset_freq==0:
             print("Reseting the Populations")
             self._reset_populations()
             self.reset_counter = 0   
@@ -60,11 +56,17 @@ class BeaconEnv(Env):
         self._init_beacon()
 
         self.altered_probs = 0
-        
         self.current_step = 0
+
+        if self.reset_counter==0:
+            self.attacker_action = np.random.randint(low=0, high=self.args.gene_size)
+            current_beacon_s = copy.deepcopy(self.beacon_state)
+            current_beacon_s[:, self.attacker_action, 3] = 1
+            return self.attacker_state, current_beacon_s
+
         return self.attacker_state, self.beacon_state
 
-    def step(self, beacon_action): 
+    def step(self, beacon_action:float): 
         beacon_action = np.clip(beacon_action, -1, 1)
         done = False
         # # Change the res of the asked gene to 1 in the state of beacon
@@ -85,15 +87,15 @@ class BeaconEnv(Env):
         self.altered_probs += beacon_action
         preward = torch.exp(self._calc_beacon_reward())
         ureward = -1*self.altered_probs
-        print("preward: ", preward)
-        print("ureward: ", ureward)
+        print("lrt: ", self._calc_beacon_reward())
+        # print("preward: ", preward)
+        # print("ureward: ", ureward)
         reward = preward + ureward
 
         self.current_step += 1
         if self.current_step >= self.max_steps:
             done = True
 
-        
         return observation, reward, done, [preward, ureward]
 
     def _reset_populations(self)->None:
@@ -115,7 +117,7 @@ class BeaconEnv(Env):
         self.beacon_state = torch.stack([torch.Tensor(self.s_beacon.T), temp_maf, responses, current_query], dim=-1)
         # return self.beacon_state
     
-    def _calc_beacon_reward(self):
+    def _calc_beacon_reward(self)->float:
         lrt_values = []
         for index, individual in enumerate(self.beacon_state):
             lrt = self.calculate_lrt(self.beacon_state[index, :, :])
@@ -159,7 +161,7 @@ class BeaconEnv(Env):
         return s_beacon, s_control, a_control, victim, self.maf[genes]
 
 
-    def calculate_lrt(self, ind, error=0.001):
+    def calculate_lrt(self, ind:int, error=0.001)->float:
         # print(ind)
         mask = (ind[:, 2] == 0) & (ind[:, 3] == 0)
         filtered_ind = ind[~mask]
