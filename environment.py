@@ -44,8 +44,7 @@ class BeaconEnv(Env):
     def reset(self) -> torch.Tensor:
         self.reset_counter+=1
 
-
-        if self.reset_counter%self.args.pop_reset_freq==0:
+        if self.reset_counter%self.args.pop_reset_freq==0 and self.reset_counter>0:
             print("Reseting the Populations")
             self._reset_populations()
             self.reset_counter = 0   
@@ -88,8 +87,8 @@ class BeaconEnv(Env):
         preward = torch.exp(self._calc_beacon_reward())
         ureward = -1*self.altered_probs
         print("lrt: ", self._calc_beacon_reward())
-        # print("preward: ", preward)
-        # print("ureward: ", ureward)
+        print("preward: ", preward)
+        print("ureward: ", ureward)
         reward = preward + ureward
 
         self.current_step += 1
