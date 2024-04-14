@@ -158,27 +158,47 @@ def train(args:object, env:object, ppo_agent:object):
 
 def val(ppo_agent, env):
 
-    ppo_agent.actor.eval()
-    state = env.reset()
+    ppo_agent.policy.actor.eval()
+    state = env.reset("")[1]
     total_reward = 0
+    current_ureward = 0
+    current_preward = 0
+    privacy_rewards = []
+    utility_rewards = []
+    total_rewards = []
+    lrt_values_list = []
+
+    print("arda")
 
     done = False
     while not done:
-        action = ppo_agent.select_action(state, evaluation=True)
-        state, reward, done, rewards = env.step(action)
+        state = torch.flatten(state)
+        action = ppo_agent.select_action(state)
+        state, reward, done, rewards, lrt_values = env.step(action, "")
+
+        total_reward += reward
+        current_preward += rewards[0]
+        current_ureward += rewards[1]
+
+        total_rewards.append(total_reward)
+        utility_rewards.append(current_ureward)
+        privacy_rewards.append(current_preward)
+        lrt_values_list.append(lrt_values)
 
 
         print("total reward ", reward, " preward: ", rewards[0], " ureward: ", rewards[1])
-        total_reward += reward
 
 
-    print(f"Validation completed with total reward: {total_reward}")
+    plot_rewards(total_rewards, utility_rewards, privacy_rewards)
+    #plot_individual_rewards(total_reward, utility_rewards, privacy_rewards)
+    plot_lrts(lrt_values_list)
+    print(f"Validation completed, total reward: {total_reward}")
 
     return total_reward
 
 
 # Validation
-def val(ppo_agent, env):
+'''def val(ppo_agent, env):
 
     #TODO: get the actor of ppo agent first eval the model to prevent changing the model
 
@@ -191,3 +211,4 @@ def val(ppo_agent, env):
     # Send Optimal Attacker quieries to the env get the state of beacon
     # Act according to the state using actor model and log the rewards and actions
     return None
+'''

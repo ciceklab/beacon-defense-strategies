@@ -57,6 +57,10 @@ class BeaconEnv(Env):
         self.altered_probs = 0
         self.current_step = 0
 
+        maf_values = self.beacon_state[0, :, 1]
+        self.sorted_gene_indices = np.argsort(maf_values)
+        self.current_gene_index = 0
+
         if self.reset_counter==0:
             if attacker_strategy == "random":
                 self.attacker_action = np.random.randint(low=0, high=self.args.gene_size)
@@ -64,9 +68,10 @@ class BeaconEnv(Env):
                 current_beacon_s[:, self.attacker_action, 3] = 1
                 return self.attacker_state, current_beacon_s
             else:
-                self.attacker_action = np.random.randint(low=0, high=self.args.gene_size)
+                self.attacker_action = self.sorted_gene_indices[self.current_gene_index]
                 current_beacon_s = copy.deepcopy(self.beacon_state)
                 current_beacon_s[:, self.attacker_action, 3] = 1
+                self.current_gene_index = (self.current_gene_index)
                 return self.attacker_state, current_beacon_s
 
 
@@ -81,9 +86,6 @@ class BeaconEnv(Env):
         # else:
         #     self.beacon_state[:, self.attacker_action, 2] = -1 #LIE
 
-        maf_values = self.beacon_state[0, :, 1]
-        self.sorted_gene_indices = np.argsort(maf_values)
-        self.current_gene_index = 0
 
         # Take attacker Action
         if(attacker_strategy == "random"):
@@ -91,10 +93,11 @@ class BeaconEnv(Env):
             current_beacon_s = copy.deepcopy(self.beacon_state)
             current_beacon_s[:, self.attacker_action, 3] = 1
         else:
+            self.current_gene_index += 1
             self.attacker_action = self.sorted_gene_indices[self.current_gene_index]
             current_beacon_s = copy.deepcopy(self.beacon_state)
             current_beacon_s[:, self.attacker_action, 3] = 1
-            self.current_gene_index = (self.current_gene_index + 1) #% len(self.sorted_gene_indices)
+            self.current_gene_index = (self.current_gene_index ) #% len(self.sorted_gene_indices)
 
 
 
