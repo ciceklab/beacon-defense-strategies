@@ -1,7 +1,7 @@
 from datetime import datetime
 import os
 
-from utils import plot_individual_rewards, plot_rewards
+from utils import plot_individual_rewards, plot_rewards, plot_lrts
 
 import torch
 
@@ -49,17 +49,19 @@ def train(args:object, env:object, ppo_agent:object):
     privacy_rewards = []
     utility_rewards = []
     total_rewards = []
+    lrt_values_list = []
 
 
     # training loop
     while i_episode <= args.episodes:
 
-        state = env.reset()[1]
+        state = env.reset("random")[1]
         # print(state.size())
         current_ep_reward = 0
 
         current_ep_preward = 0
         current_ep_ureward = 0
+        current_lrt_values = []
 
         print("Episode: ", i_episode)
 
@@ -69,7 +71,7 @@ def train(args:object, env:object, ppo_agent:object):
             # select action with policy
             state = torch.flatten(state)
             action = ppo_agent.select_action(state)
-            state, reward, done, rewards = env.step(action)
+            state, reward, done, rewards, lrt_values = env.step(action, "random")
 
             # saving reward and is_terminals
             ppo_agent.buffer.rewards.append(reward)
@@ -79,6 +81,7 @@ def train(args:object, env:object, ppo_agent:object):
             current_ep_reward += reward
             current_ep_preward += rewards[0]
             current_ep_ureward += rewards[1]
+            current_lrt_values = lrt_values
             if done:
                 break
 
@@ -123,6 +126,7 @@ def train(args:object, env:object, ppo_agent:object):
         total_rewards.append(current_ep_reward)
         utility_rewards.append(current_ep_ureward)
         privacy_rewards.append(current_ep_preward)
+        lrt_values_list.append(current_lrt_values)
 
         print_running_reward += current_ep_reward
         print_running_episodes += 1
@@ -133,6 +137,7 @@ def train(args:object, env:object, ppo_agent:object):
         if i_episode % 10 == 0 and i_episode > 0:
             plot_rewards(total_rewards, utility_rewards, privacy_rewards)
             plot_individual_rewards(total_rewards, utility_rewards, privacy_rewards)
+            plot_lrts(lrt_values_list)
 
         # if i_episode % args.val_freq == 0:
         #     val()
@@ -151,10 +156,38 @@ def train(args:object, env:object, ppo_agent:object):
     print("============================================================================================")
 
 
+def val(ppo_agent, env):
+
+    ppo_agent.actor.eval()
+    state = env.reset()
+    total_reward = 0
+
+    done = False
+    while not done:
+        action = ppo_agent.select_action(state, evaluation=True)
+        state, reward, done, rewards = env.step(action)
+
+
+        print("total reward ", reward, " preward: ", rewards[0], " ureward: ", rewards[1])
+        total_reward += reward
+
+
+    print(f"Validation completed with total reward: {total_reward}")
+
+    return total_reward
+
+
 # Validation
 def val(ppo_agent, env):
 
     #TODO: get the actor of ppo agent first eval the model to prevent changing the model
+
+    action = ppo_agent.actor.eval()
+    state, reward, done, rewards = env.step(action)
+
+    print("total reward ", reward, " preward: ", rewards[0], " ureward: ", rewards[1])
+
+
     # Send Optimal Attacker quieries to the env get the state of beacon
     # Act according to the state using actor model and log the rewards and actions
     return None

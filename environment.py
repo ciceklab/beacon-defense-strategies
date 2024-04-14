@@ -41,7 +41,7 @@ class BeaconEnv(Env):
         self.current_step = 0
 
     # Reset the environment after an episode
-    def reset(self) -> torch.Tensor:
+    def reset(self, attacker_strategy) -> torch.Tensor:
         self.reset_counter+=1
 
         if self.reset_counter%self.args.pop_reset_freq==0 and self.reset_counter>0:
@@ -58,14 +58,21 @@ class BeaconEnv(Env):
         self.current_step = 0
 
         if self.reset_counter==0:
-            self.attacker_action = np.random.randint(low=0, high=self.args.gene_size)
-            current_beacon_s = copy.deepcopy(self.beacon_state)
-            current_beacon_s[:, self.attacker_action, 3] = 1
-            return self.attacker_state, current_beacon_s
+            if attacker_strategy == "random":
+                self.attacker_action = np.random.randint(low=0, high=self.args.gene_size)
+                current_beacon_s = copy.deepcopy(self.beacon_state)
+                current_beacon_s[:, self.attacker_action, 3] = 1
+                return self.attacker_state, current_beacon_s
+            else:
+                self.attacker_action = np.random.randint(low=0, high=self.args.gene_size)
+                current_beacon_s = copy.deepcopy(self.beacon_state)
+                current_beacon_s[:, self.attacker_action, 3] = 1
+                return self.attacker_state, current_beacon_s
+
 
         return self.attacker_state, self.beacon_state
 
-    def step(self, beacon_action:float): 
+    def step(self, beacon_action:float, attacker_strategy):
         beacon_action = np.clip(beacon_action, -1, 1)
         done = False
         # # Change the res of the asked gene to 1 in the state of beacon
@@ -74,17 +81,30 @@ class BeaconEnv(Env):
         # else:
         #     self.beacon_state[:, self.attacker_action, 2] = -1 #LIE
 
+        maf_values = self.beacon_state[0, :, 1]
+        self.sorted_gene_indices = np.argsort(maf_values)
+        self.current_gene_index = 0
+
         # Take attacker Action
-        self.attacker_action = np.random.randint(low=0, high=self.args.gene_size)
-        current_beacon_s = copy.deepcopy(self.beacon_state)
-        current_beacon_s[:, self.attacker_action, 3] = 1
+        if(attacker_strategy == "random"):
+            self.attacker_action = np.random.randint(low=0, high=self.args.gene_size)
+            current_beacon_s = copy.deepcopy(self.beacon_state)
+            current_beacon_s[:, self.attacker_action, 3] = 1
+        else:
+            self.attacker_action = self.sorted_gene_indices[self.current_gene_index]
+            current_beacon_s = copy.deepcopy(self.beacon_state)
+            current_beacon_s[:, self.attacker_action, 3] = 1
+            self.current_gene_index = (self.current_gene_index + 1) #% len(self.sorted_gene_indices)
+
+
 
         observation = current_beacon_s # Attacker's state will be added for the multi agent RL
 
 
         # Calculate the lrt for individuals in the beacon and find the min 
         self.altered_probs += beacon_action
-        preward = torch.exp(self._calc_beacon_reward())
+        min_lrt, lrt_values = self._calc_beacon_reward()
+        preward = torch.exp(min_lrt)
         ureward = -1*self.altered_probs
         print("lrt: ", self._calc_beacon_reward())
         print("preward: ", preward)
@@ -95,7 +115,7 @@ class BeaconEnv(Env):
         if self.current_step >= self.max_steps:
             done = True
 
-        return observation, reward, done, [preward, ureward]
+        return observation, reward, done, [preward, ureward], lrt_values
 
     def _reset_populations(self)->None:
         self.s_beacon, self.s_control, self.a_control, self.victim, self.mafs = self.get_populations()
@@ -124,7 +144,7 @@ class BeaconEnv(Env):
             # print("lrt_values", lrt_values)
         min_lrt = min(lrt_values)
         # print("Min LRT: ", min_lrt)
-        return min_lrt
+        return min_lrt, lrt_values
 
     # Defining the populations and genes randomly
     def get_populations(self):
