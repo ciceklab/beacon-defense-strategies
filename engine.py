@@ -159,7 +159,7 @@ def train(args:object, env:object, ppo_agent:object):
 def val(ppo_agent, env):
 
     ppo_agent.policy.actor.eval()
-    state = env.reset("")[1]
+    state = env.reset("random")[1]
     total_reward = 0
     current_ureward = 0
     current_preward = 0
@@ -173,8 +173,10 @@ def val(ppo_agent, env):
     done = False
     while not done:
         state = torch.flatten(state)
-        action = ppo_agent.select_action(state)
-        state, reward, done, rewards, lrt_values = env.step(action, "")
+        action_probs = ppo_agent.policy.actor(state)
+        action = action_probs.detach().numpy()
+        print("arda", action)
+        state, reward, done, rewards, lrt_values = env.step(action, "random")
 
         total_reward += reward
         current_preward += rewards[0]
@@ -185,9 +187,7 @@ def val(ppo_agent, env):
         privacy_rewards.append(current_preward)
         lrt_values_list.append(lrt_values)
 
-
         print("total reward ", reward, " preward: ", rewards[0], " ureward: ", rewards[1])
-
 
     plot_rewards(total_rewards, utility_rewards, privacy_rewards)
     #plot_individual_rewards(total_reward, utility_rewards, privacy_rewards)
