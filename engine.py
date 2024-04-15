@@ -1,5 +1,6 @@
 from datetime import datetime
 import os
+import copy
 
 from utils import plot_individual_rewards, plot_rewards, plot_lrts
 
@@ -140,7 +141,7 @@ def train(args:object, env:object, ppo_agent:object):
             plot_lrts(lrt_values_list)
 
         # if i_episode % args.val_freq == 0:
-        #     val()
+        #     val(args, ppo_agent=copy.deepcopy(ppo_agent), env=env)
 
         i_episode += 1
 
@@ -156,10 +157,10 @@ def train(args:object, env:object, ppo_agent:object):
     print("============================================================================================")
 
 
-def val(ppo_agent, env):
+def val(args, ppo_agent, env):
+    print("Start Validating Using Optimal Attacker")
 
-    ppo_agent.policy.actor.eval()
-    state = env.reset("random")[1]
+    state = env.reset("")[1]
     total_reward = 0
     current_ureward = 0
     current_preward = 0
@@ -168,15 +169,13 @@ def val(ppo_agent, env):
     total_rewards = []
     lrt_values_list = []
 
-    print("Start Validating Using Optimal Attacker")
 
     done = False
     while not done:
         state = torch.flatten(state)
-        action_probs = ppo_agent.policy.actor(state)
-        action = action_probs.detach().numpy()
+        action, _, _ = ppo_agent.policy.act(state.to(args.device))
         print("arda", action)
-        state, reward, done, rewards, lrt_values = env.step(action, "random")
+        state, reward, done, rewards, lrt_values = env.step(action.detach().cpu().numpy(), "")
 
         total_reward += reward
         current_preward += rewards[0]
@@ -187,13 +186,13 @@ def val(ppo_agent, env):
         privacy_rewards.append(current_preward)
         lrt_values_list.append(lrt_values)
 
-        print("total reward ", reward, " preward: ", rewards[0], " ureward: ", rewards[1])
+        # print("total reward ", reward, " preward: ", rewards[0], " ureward: ", rewards[1])
 
+    print(total_rewards, utility_rewards, privacy_rewards, lrt_values)
     plot_rewards(total_rewards, utility_rewards, privacy_rewards)
     #plot_individual_rewards(total_reward, utility_rewards, privacy_rewards)
     plot_lrts(lrt_values_list)
     print(f"Validation completed, total reward: {total_reward}")
-
     return total_reward
 
 
