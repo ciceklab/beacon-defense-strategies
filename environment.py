@@ -107,11 +107,11 @@ class BeaconEnv(Env):
         # Calculate the lrt for individuals in the beacon and find the min 
         self.altered_probs += beacon_action
         min_lrt, lrt_values = self._calc_beacon_reward()
-        preward = torch.exp(min_lrt)
+        preward = min_lrt
         ureward = -1*self.altered_probs
-        print("lrt: ", self._calc_beacon_reward())
-        print("preward: ", preward)
-        print("ureward: ", ureward)
+        # print("lrt: ", self._calc_beacon_reward())
+        # print("preward: ", preward)
+        # print("ureward: ", ureward)
         reward = preward + ureward
 
         self.current_step += 1
@@ -197,12 +197,12 @@ class BeaconEnv(Env):
         DN_i_1 = (1 - maf).pow(2 * self.args.beacon_size - 2)
 
         # Genome == 1
-        log1 = torch.log(DN_i / (error * DN_i_1))
-        log2 = torch.log((error * DN_i_1 * (1 - DN_i)) / (DN_i * (1 - error * DN_i_1)))
+        log1 = torch.log(DN_i) - torch.log(error * DN_i_1)
+        log2 = torch.log((error * DN_i_1 * (1 - DN_i))) - torch.log(DN_i * (1 - error * DN_i_1))
 
         # Genome == 0
-        log3 = torch.log(DN_i / ((1 - error) * DN_i_1))
-        log4 = torch.log((1 - error) * DN_i_1 * (1 - DN_i)) / (DN_i * (1 - DN_i_1 * (1 - error)))
+        log3 = torch.log(DN_i) - torch.log((1 - error) * DN_i_1)
+        log4 = torch.log((1 - error) * DN_i_1 * (1 - DN_i)) - torch.log(DN_i * (1 - DN_i_1 * (1 - error)))
 
         x_hat_i = (genome * response) + ((1 - genome) * (1 - response))
 

@@ -134,7 +134,7 @@ def train(args:object, env:object, ppo_agent:object):
         log_running_reward += current_ep_reward
         log_running_episodes += 1
 
-        if i_episode % 10 == 0 and i_episode > 0:
+        if i_episode % 50 == 0 and i_episode > 0:
             plot_rewards(total_rewards, utility_rewards, privacy_rewards)
             plot_individual_rewards(total_rewards, utility_rewards, privacy_rewards)
             plot_lrts(lrt_values_list)
@@ -168,7 +168,7 @@ def val(ppo_agent, env):
     total_rewards = []
     lrt_values_list = []
 
-    print("arda")
+    print("Start Validating Using Optimal Attacker")
 
     done = False
     while not done:
