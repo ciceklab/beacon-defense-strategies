@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import numpy as np
 
 
 def plot_rewards(losses1, losses2, losses3):
@@ -68,9 +69,35 @@ def plot_lrts(lrt_values_list, group_size=10):
             axes[i].plot(individual_lrt_values, marker='o', linestyle='-', label=f'Individual {individual_index + 1}')
 
         axes[i].set_title(f'LRT Values for Individuals {start_index + 1} to {end_index}')
-        axes[i].set_xlabel('Array Index')
+        axes[i].set_xlabel('Episode')
         axes[i].set_ylabel('LRT Value')
         axes[i].grid(True)
         axes[i].legend()
 
     plt.show()
+
+
+
+
+
+def plot_lrt_stats(lrt_values_list):
+    lrt_array = np.array(lrt_values_list)
+
+    mean_lrt_values = np.mean(lrt_array, axis=1)
+    variance_lrt_values = np.var(lrt_array, axis=1)
+
+    plt.figure(figsize=(10, 6))
+    time_points = range(1, len(lrt_values_list) + 1)
+
+    plt.plot(time_points, mean_lrt_values, 'g-', label='Mean LRT Values', marker='o')
+    plt.plot(time_points, variance_lrt_values, 'r-', label='Variance of LRT Values', marker='o')
+
+    plt.title('Mean and Variance of LRT Values ')
+    plt.xlabel('Episode')
+    plt.ylabel('LRT Values')
+    plt.legend()
+    plt.grid(True)
+
+    # Show the plot
+    plt.show()
+
