@@ -1,5 +1,7 @@
 import numpy as np
 import copy
+import os
+import csv
 import math
 
 from gym import Env
@@ -26,13 +28,11 @@ class BeaconEnv(Env):
         self._init_attacker()
         self._init_beacon()
 
+
         self.attacker_action = 0
         self.beacon_action = 0
         self.altered_probs = 0
         
-        # print(self.attacker_state.size())
-        # print(self.beacon_state.size())
-
 
         # Define action and observation space
         self.action_space = spaces.Box(low=0, high=1, shape=(1,))  # Beacon lies or not
@@ -40,8 +40,19 @@ class BeaconEnv(Env):
         self.max_steps = args.max_queries  # Maximum number of steps per episode
         self.current_step = 0
 
+        if self.args.attacker_type == "optimal":
+            self.optimal_queries = self._init_optimal_attacker()
+
+
+        log_env_name = args.results_dir + "/env" + '/PPO_' + str(len(next(os.walk(args.results_dir))[2])) + ".csv"
+        self.log_env = csv.writer(open(log_env_name,"w+"))
+        self.log_env.writerow(["Episode", "Beacon", "Gene", "SNP", "MAF", "RES"])
+        # log_f.write('Start\n')
+
+
+
     # Reset the environment after an episode
-    def reset(self, attacker_strategy) -> torch.Tensor:
+    def reset(self) -> torch.Tensor:
         self.reset_counter+=1
 
         if self.reset_counter%self.args.pop_reset_freq==0 and self.reset_counter>0:
@@ -57,50 +68,39 @@ class BeaconEnv(Env):
         self.altered_probs = 0
         self.current_step = 0
 
-        maf_values = self.beacon_state[0, :, 1]
-        self.sorted_gene_indices = np.argsort(maf_values)
-        self.current_gene_index = 0
-
         if self.reset_counter==0:
-            if attacker_strategy == "random":
+            if self.args.attacker_type == "random":
                 self.attacker_action = np.random.randint(low=0, high=self.args.gene_size)
-                current_beacon_s = copy.deepcopy(self.beacon_state)
-                current_beacon_s[:, self.attacker_action, 3] = 1
-                return self.attacker_state, current_beacon_s
+            elif self.args.attacker_type == "optimal":
+                self.attacker_action = self.optimal_queries[self.current_step]
             else:
-                self.attacker_action = self.sorted_gene_indices[self.current_gene_index]
-                current_beacon_s = copy.deepcopy(self.beacon_state)
-                current_beacon_s[:, self.attacker_action, 3] = 1
-                self.current_gene_index = (self.current_gene_index)
-                return self.attacker_state, current_beacon_s
+                raise NotImplemented
+            current_beacon_s = copy.deepcopy(self.beacon_state)
+            current_beacon_s[:, self.attacker_action, 3] = 1
+            return self.attacker_state, current_beacon_s
 
 
         return self.attacker_state, self.beacon_state
 
-    def step(self, beacon_action:float, attacker_strategy):
-        beacon_action = np.clip(beacon_action, -1, 1)
+    def step(self, beacon_action:float):
+        beacon_action = np.clip(beacon_action, 0, 1)
         done = False
         # # Change the res of the asked gene to 1 in the state of beacon
         # if beacon_action > 0.5:
-        self.beacon_state[:, self.attacker_action, 2] += beacon_action #TRUTH
+        self.beacon_state[:, self.attacker_action, 2] = torch.Tensor(beacon_action) #TRUTH
         # else:
         #     self.beacon_state[:, self.attacker_action, 2] = -1 #LIE
 
-
         # Take attacker Action
-        if(attacker_strategy == "random"):
+        if self.args.attacker_type == "random":
             self.attacker_action = np.random.randint(low=0, high=self.args.gene_size)
-            current_beacon_s = copy.deepcopy(self.beacon_state)
-            current_beacon_s[:, self.attacker_action, 3] = 1
+        elif self.args.attacker_type == "optimal":
+            self.attacker_action = self.optimal_queries[self.current_step]
         else:
-            self.current_gene_index += 1
-            self.attacker_action = self.sorted_gene_indices[self.current_gene_index]
-            current_beacon_s = copy.deepcopy(self.beacon_state)
-            current_beacon_s[:, self.attacker_action, 3] = 1
-            self.current_gene_index = (self.current_gene_index ) #% len(self.sorted_gene_indices)
-
-
-
+            raise NotImplemented
+        
+        current_beacon_s = copy.deepcopy(self.beacon_state)
+        current_beacon_s[:, self.attacker_action, 3] = 1
         observation = current_beacon_s # Attacker's state will be added for the multi agent RL
 
 
@@ -108,7 +108,7 @@ class BeaconEnv(Env):
         self.altered_probs += beacon_action
         min_lrt, lrt_values = self._calc_beacon_reward()
         preward = min_lrt
-        ureward = -1*self.altered_probs
+        ureward = self.altered_probs
         # print("lrt: ", self._calc_beacon_reward())
         # print("preward: ", preward)
         # print("ureward: ", ureward)
@@ -116,6 +116,9 @@ class BeaconEnv(Env):
 
         self.current_step += 1
         if self.current_step >= self.max_steps:
+            done = True
+        
+        if self.current_step == len(self.optimal_queries)-1:
             done = True
 
         return observation, reward, done, [preward, ureward], lrt_values
@@ -129,6 +132,13 @@ class BeaconEnv(Env):
         total_snps = self.attacker_state[:, 0].sum().item()
         # print("There are {} SNPs".format(total_snps))
         # return self.attacker_state
+
+    def _init_optimal_attacker(self):
+        maf_values = self.beacon_state[0, :, 1]
+        sorted_gene_indices = np.argsort(maf_values) # Sort the MAFs 
+        mask = (self.victim[sorted_gene_indices] == 1) #Get the SNPs
+        return sorted_gene_indices[mask]
+    
 
     # Initilize the beacon states
     def _init_beacon(self)->None:
@@ -152,7 +162,7 @@ class BeaconEnv(Env):
     # Defining the populations and genes randomly
     def get_populations(self):
         if self.args.control_size*2 + self.args.beacon_size > self.beacon.shape[1]:
-            raise Exception("Size of the population in too low!")
+            raise Exception("Size of the population is too low!")
 
 
         # Prepare index arrays for future use
@@ -211,3 +221,10 @@ class BeaconEnv(Env):
         nan_mask = torch.isnan(lrts)
         lrts = lrts[~nan_mask]
         return torch.sum(lrts)
+    
+        # log tensor data into a CSV file
+    def log_beacon_state(self, episode):
+        for beacon_idx, beacon_data in enumerate(self.beacon_state):
+            for gene_idx, gene_data in enumerate(beacon_data):
+                snp, maf, res, current = gene_data
+                self.log_env.writerow([episode, beacon_idx+1, gene_idx+1, snp.detach().cpu().numpy(), maf.detach().cpu().numpy(), res.detach().cpu().numpy()])

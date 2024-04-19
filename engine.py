@@ -56,7 +56,7 @@ def train(args:object, env:object, ppo_agent:object):
     # training loop
     while i_episode <= args.episodes:
 
-        state = env.reset("random")[1]
+        state = env.reset()[1]
         # print(state.size())
         current_ep_reward = 0
 
@@ -64,7 +64,7 @@ def train(args:object, env:object, ppo_agent:object):
         current_ep_ureward = 0
         current_lrt_values = []
 
-        print("Episode: ", i_episode)
+        # print("Episode: ", i_episode)
 
 
         for t in range(1, args.max_queries+1):
@@ -72,7 +72,7 @@ def train(args:object, env:object, ppo_agent:object):
             # select action with policy
             state = torch.flatten(state)
             action = ppo_agent.select_action(state)
-            state, reward, done, rewards, lrt_values = env.step(action, "random")
+            state, reward, done, rewards, lrt_values = env.step(action)
 
             # saving reward and is_terminals
             ppo_agent.buffer.rewards.append(reward)
@@ -87,7 +87,7 @@ def train(args:object, env:object, ppo_agent:object):
                 break
 
         # update PPO agent
-        if i_episode % (args.pop_reset_freq/2) == 0 and i_episode>0:
+        if i_episode % args.update_freq == 0 and i_episode>0:
             print("updating the agent")
             ppo_agent.update()
 
@@ -106,6 +106,8 @@ def train(args:object, env:object, ppo_agent:object):
             print_avg_reward = print_avg_reward
 
             print("Episode : {} \t\t Timestep : {} \t\t Average Reward : {}".format(i_episode, time_step, print_avg_reward))
+
+            env.log_beacon_state(i_episode)
 
             print_running_reward = 0
             print_running_episodes = 0
@@ -135,7 +137,7 @@ def train(args:object, env:object, ppo_agent:object):
         log_running_reward += current_ep_reward
         log_running_episodes += 1
 
-        if i_episode % 50 == 0 and i_episode > 0:
+        if i_episode % args.plot_freq == 0 and i_episode > 0:
             plot_rewards(total_rewards, utility_rewards, privacy_rewards)
             plot_individual_rewards(total_rewards, utility_rewards, privacy_rewards)
             plot_lrt_stats(lrt_values_list)
@@ -160,7 +162,7 @@ def train(args:object, env:object, ppo_agent:object):
 def val(args, ppo_agent, env):
     print("Start Validating Using Optimal Attacker")
 
-    state = env.reset("random")[1]
+    state = env.reset()[1]
     total_reward = 0
     current_ureward = 0
     current_preward = 0
@@ -179,9 +181,7 @@ def val(args, ppo_agent, env):
         rounded_number = round(action, 6)  # Round to 6 decimal places
         rounded_list = [rounded_number]
         #action = action.squeeze().item()
-        state, reward, done, rewards, lrt_values = env.step(rounded_list, "random")
-
-
+        state, reward, done, rewards, lrt_values = env.step(rounded_list)
 
         total_reward += reward
         current_preward += rewards[0]
@@ -193,25 +193,8 @@ def val(args, ppo_agent, env):
         lrt_values_list.append(lrt_values)
 
     plot_rewards(total_rewards, utility_rewards, privacy_rewards)
-    #plot_individual_rewards(total_reward, utility_rewards, privacy_rewards)
+    plot_individual_rewards(total_reward, utility_rewards, privacy_rewards)
     plot_lrts(lrt_values_list)
     plot_lrt_stats(lrt_values_list)
     print(f"Validation completed, total reward: {total_reward}")
     return total_reward
-
-
-# Validation
-'''def val(ppo_agent, env):
-
-    #TODO: get the actor of ppo agent first eval the model to prevent changing the model
-
-    action = ppo_agent.actor.eval()
-    state, reward, done, rewards = env.step(action)
-
-    print("total reward ", reward, " preward: ", rewards[0], " ureward: ", rewards[1])
-
-
-    # Send Optimal Attacker quieries to the env get the state of beacon
-    # Act according to the state using actor model and log the rewards and actions
-    return None
-'''

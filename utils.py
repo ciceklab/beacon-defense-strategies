@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-def plot_rewards(losses1, losses2, losses3):
+def plot_rewards(losses1, losses2, losses3, path=None):
     epochs = range(1, len(losses1) + 1) 
 
     plt.figure(figsize=(10, 6))
@@ -16,11 +16,14 @@ def plot_rewards(losses1, losses2, losses3):
     plt.ylabel('Reward')
     plt.legend()
 
+    
+    if path:
+        plt.savefig(path)
     plt.show()
 
 
 
-def plot_individual_rewards(losses1, losses2, losses3):
+def plot_individual_rewards(losses1, losses2, losses3, path=None):
     epochs = range(1, len(losses1) + 1)  # Assuming all lists have the same length
 
     plt.figure(figsize=(10, 6))
@@ -43,10 +46,13 @@ def plot_individual_rewards(losses1, losses2, losses3):
     plt.xlabel('Episodes')
     plt.ylabel('Rewards')
 
+    
+    if path:
+        plt.savefig(path)
     plt.show()
 
 
-def plot_lrts(lrt_values_list, group_size=10):
+def plot_lrts(lrt_values_list, group_size=10, path=None):
 
     num_individuals = len(lrt_values_list[0])
     num_plots = (num_individuals + group_size - 1) // group_size  #  ensure all individuals are used
@@ -74,13 +80,16 @@ def plot_lrts(lrt_values_list, group_size=10):
         axes[i].grid(True)
         axes[i].legend()
 
+
+    if path:
+        plt.savefig(path)
     plt.show()
 
 
 
 
 
-def plot_lrt_stats(lrt_values_list):
+def plot_lrt_stats(lrt_values_list, path=None):
     lrt_array = np.array(lrt_values_list)
 
     mean_lrt_values = np.mean(lrt_array, axis=1)
@@ -97,7 +106,9 @@ def plot_lrt_stats(lrt_values_list):
     plt.ylabel('LRT Values')
     plt.legend()
     plt.grid(True)
-
+    if path:
+        plt.savefig(path)
     # Show the plot
     plt.show()
+
 
