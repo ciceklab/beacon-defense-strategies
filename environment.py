@@ -47,7 +47,7 @@ class BeaconEnv(Env):
         log_env_name = args.results_dir + "/env" + '/PPO_' + str(len(next(os.walk(args.results_dir))[2])) + ".csv"
         self.log_env = csv.writer(open(log_env_name,"w+"))
         self.log_env.writerow(["Episode", "Beacon", "Gene", "SNP", "MAF", "RES"])
-        # log_f.write('Start\n')
+        #log_f.write('Start\n')
 
 
 
@@ -221,6 +221,25 @@ class BeaconEnv(Env):
         nan_mask = torch.isnan(lrts)
         lrts = lrts[~nan_mask]
         return torch.sum(lrts)
+
+    def calculate_threshold(self, alpha=0.05):
+
+        s_control_tensor = torch.Tensor(self.s_control).T
+        control_shape = s_control_tensor.shape[0]
+        # Copy MAFs, responses, and queries
+        maf_values = self.beacon_state[:control_shape, :, 1]
+        responses = self.beacon_state[:control_shape, :, 2]
+        queries = self.beacon_state[:control_shape, :, 3]
+
+        control_state = torch.stack([s_control_tensor, maf_values, responses, queries], dim=-1)
+        lrt_values = []
+        for index, individual in enumerate(control_state):
+            lrt = self.calculate_lrt(control_state[index, :, :])
+            lrt_values.append(lrt)
+
+        threshold = np.percentile(lrt_values, 100 * alpha)
+
+        return threshold
     
         # log tensor data into a CSV file
     def log_beacon_state(self, episode):
