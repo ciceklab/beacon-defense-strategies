@@ -46,9 +46,9 @@ class ActorCritic(nn.Module):
             self.actor = nn.Sequential(
                             nn.Linear(state_dim, 1024),
                             nn.Tanh(),
-                            nn.Linear(1024, 256),
+                            nn.Linear(1024, 1024),
                             nn.Tanh(),
-                            nn.Linear(256, action_dim),
+                            nn.Linear(1024, action_dim),
                             nn.Sigmoid()
                         )
         else:
@@ -64,11 +64,11 @@ class ActorCritic(nn.Module):
 
         # critic
         self.critic = nn.Sequential(
-                        nn.Linear(state_dim, 64),
+                        nn.Linear(state_dim, 1024),
                         nn.Tanh(),
-                        nn.Linear(64, 64),
+                        nn.Linear(1024, 1024),
                         nn.Tanh(),
-                        nn.Linear(64, 1)
+                        nn.Linear(1024, 1)
                     )
 
     def set_action_std(self, new_action_std):
@@ -241,6 +241,8 @@ class PPO:
         old_state_values = torch.squeeze(torch.stack(self.buffer.state_values, dim=0)).detach().to(device)
 
         # print("Old States: ", old_states.size())
+        # print("Rewards: ", rewards.size())
+
 
         # calculate advantages
         advantages = rewards.detach() - old_state_values.detach()

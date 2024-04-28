@@ -1,6 +1,8 @@
 from datetime import datetime
 import os
 import copy
+import numpy as np
+import matplotlib.pyplot as plt
 
 from utils import plot_individual_rewards, plot_rewards, plot_lrts, plot_lrt_stats
 
@@ -14,6 +16,7 @@ def train(args:object, env:object, ppo_agent:object):
 
     print("============================================================================================")
 
+    env._calc_control_lrts(agent=ppo_agent)
 
     ################### Logging ###################
     run_num = 0
@@ -47,14 +50,17 @@ def train(args:object, env:object, ppo_agent:object):
     i_episode = 0
 
 
-    privacy_rewards = []
-    utility_rewards = []
-    total_rewards = []
-    lrt_values_list = []
+    privacy_erewards = []
+    utility_erewards = []
+    total_erewards = []
 
+    privacy_rewards=[]
+    utility_rewards=[]
+    total_rewards=[]
 
     # training loop
     while i_episode <= args.episodes:
+        print("Episode: ", i_episode)
 
         state = env.reset()[1]
         # print(state.size())
@@ -64,15 +70,15 @@ def train(args:object, env:object, ppo_agent:object):
         current_ep_ureward = 0
         current_lrt_values = []
 
-        # print("Episode: ", i_episode)
-
 
         for t in range(1, args.max_queries+1):
-
+            # print("State: ", state)
             # select action with policy
             state = torch.flatten(state)
+            # print(state.size())
             action = ppo_agent.select_action(state)
-            state, reward, done, rewards, lrt_values = env.step(action)
+            # print("Beacon Action: ", action)
+            state, reward, done, rewards, p_values = env.step(action)
 
             # saving reward and is_terminals
             ppo_agent.buffer.rewards.append(reward)
@@ -82,16 +88,33 @@ def train(args:object, env:object, ppo_agent:object):
             current_ep_reward += reward
             current_ep_preward += rewards[0]
             current_ep_ureward += rewards[1]
-            current_lrt_values = lrt_values
+
+            privacy_rewards.append(rewards[0])
+            utility_rewards.append(rewards[1])
+            total_rewards.append(reward)
             if done:
                 break
+
+        
+        if i_episode % 10 == 0:
+            print("Episode: ", i_episode)
+            print("Episode Reward: ", current_ep_reward)
+            print("Episode Privacy Reward: ", current_ep_preward)
+            print("Episode Utility Reward: ", current_ep_ureward)
+            print("Episode Pvalues: ", p_values)
+            print("Min Episode pvalue: ", min(p_values))
+            
+            plt.plot(np.arange(args.beacon_size), p_values)
+            plt.axhline(y=0.05, color='r', linestyle='--')
+            plt.show()
+            print("Victim Episode pvalue: ", p_values[-1])
 
         # update PPO agent
         if i_episode % args.update_freq == 0 and i_episode>0:
             print("updating the agent")
             ppo_agent.update()
 
-            # log average reward till last episode
+            # log_beacon_state average reward till last episode
             log_avg_reward = log_running_reward / log_running_episodes
             log_avg_reward = log_avg_reward
 
@@ -111,6 +134,7 @@ def train(args:object, env:object, ppo_agent:object):
 
             print_running_reward = 0
             print_running_episodes = 0
+            env._calc_control_lrts(agent=ppo_agent)
 
             # save model weights
             print("--------------------------------------------------------------------------------------------")
@@ -125,11 +149,10 @@ def train(args:object, env:object, ppo_agent:object):
         # if has_continuous_action_space and i_episode % (args.episodes/4)==0 and i_episode>0 == 0:
         #     ppo_agent.decay_action_std(action_std_decay_rate, min_action_std)
 
-
-        total_rewards.append(current_ep_reward)
-        utility_rewards.append(current_ep_ureward)
-        privacy_rewards.append(current_ep_preward)
-        lrt_values_list.append(current_lrt_values)
+        total_erewards.append(current_ep_reward)
+        utility_erewards.append(current_ep_ureward)
+        privacy_erewards.append(current_ep_preward)
+        # lrt_values_list.append(current_lrt_values)
 
         print_running_reward += current_ep_reward
         print_running_episodes += 1
@@ -138,10 +161,13 @@ def train(args:object, env:object, ppo_agent:object):
         log_running_episodes += 1
 
         if i_episode % args.plot_freq == 0 and i_episode > 0:
-            plot_rewards(total_rewards, utility_rewards, privacy_rewards)
-            plot_individual_rewards(total_rewards, utility_rewards, privacy_rewards)
-            plot_lrt_stats(lrt_values_list)
-            plot_lrts(lrt_values_list)
+            plot_rewards(total_erewards, utility_erewards, privacy_erewards)
+            plot_individual_rewards(total_erewards, utility_erewards, privacy_erewards)
+
+            # plot_rewards(total_rewards, utility_rewards, privacy_rewards)
+            # plot_individual_rewards(total_rewards, utility_rewards, privacy_rewards)
+            # plot_lrt_stats(lrt_values_list)
+            # plot_lrts(lrt_values_list)
 
         # if i_episode % args.val_freq == 0:
         #     val(args, ppo_agent=copy.deepcopy(ppo_agent), env=env)
