@@ -3,12 +3,12 @@ import copy
 import os
 import csv
 import math
+import random
 
 from gym import Env
 from gym import spaces
 
 import torch
-
 
 class BeaconEnv(Env):
     def __init__(self, args, beacon, maf, binary):
@@ -85,11 +85,11 @@ class BeaconEnv(Env):
             current_beacon_s[:, self.attacker_action, 3] = 1
             # print(self.control_lrts[:, 0].size())
 
-            current_control=copy.deepcopy(self.scontrol_state)
-            current_control[:,:,2] = (self.control_responses[:, self.current_step].view(self.args.control_size, 1).repeat(1, self.args.gene_size))
-            current_control[:, :, 4] = (self.control_lrts[:, self.current_step].view(self.args.control_size, 1).repeat(1, self.args.gene_size))
+            # current_control=copy.deepcopy(self.scontrol_state)
+            self.scontrol_state[:,:,2] = (self.control_responses[:, self.current_step].view(self.args.control_size, 1).repeat(1, self.args.gene_size))
+            self.scontrol_state[:, :, 4] = (self.control_lrts[:, self.current_step].view(self.args.control_size, 1).repeat(1, self.args.gene_size))
 
-            observation = torch.concatenate([current_beacon_s, current_control])
+            observation = torch.concatenate([current_beacon_s, self.scontrol_state])
             # print("Observation: {}".format(observation))
 
             return self.attacker_state, observation
@@ -160,12 +160,12 @@ class BeaconEnv(Env):
             self._act_attacker()
             current_beacon_s = copy.deepcopy(self.beacon_state)
             current_beacon_s[:, self.attacker_action, 3] = 1
-            current_control=copy.deepcopy(self.scontrol_state)
-            current_control[:,:,2] = (self.control_responses[:, self.current_step].view(self.args.control_size, 1).repeat(1, self.args.gene_size))
-            current_control[:, :, 4] = (self.control_lrts[:, self.current_step].view(self.args.control_size, 1).repeat(1, self.args.gene_size))
+            # current_control=copy.deepcopy(self.scontrol_state)
+            self.scontrol_state[:,:,2] = (self.control_responses[:, self.current_step].view(self.args.control_size, 1).repeat(1, self.args.gene_size))
+            self.scontrol_state[:, :, 4] = (self.control_lrts[:, self.current_step].view(self.args.control_size, 1).repeat(1, self.args.gene_size))
 
 
-            observation = torch.concatenate([current_beacon_s, current_control])# Attacker's state will be added for the multi agent RL
+            observation = torch.concatenate([current_beacon_s, self.scontrol_state])# Attacker's state will be added for the multi agent RL
         # print("Observation: {}".format(observation))
         return observation, reward, done, [preward, ureward], pvalues
     
@@ -177,7 +177,7 @@ class BeaconEnv(Env):
             self.attacker_action = self.optimal_queries[self.current_step]
         else:
             raise NotImplemented
-        # print("Attacker Attacked {} Query".format(self.attacker_action))
+        print("Attacker Attacked {} Query".format(self.attacker_action))
 
     def _reset_populations(self)->None:
         self.s_beacon, self.s_control, self.a_control, self.victim, self.mafs = self.get_populations()
@@ -195,7 +195,8 @@ class BeaconEnv(Env):
         sorted_gene_indices = np.argsort(maf_values) # Sort the MAFs 
         mask_one = (self.victim[sorted_gene_indices] == 1) #Get the SNPs
         mask_zero = (self.victim[sorted_gene_indices] == 0) #Get the SNPs
-        queries = torch.concatenate((sorted_gene_indices[mask_one], sorted_gene_indices[mask_zero]))
+        queries = torch.concatenate((sorted_gene_indices[mask_one], sorted_gene_indices[mask_zero]))[:self.max_steps]
+        print(f"Attacker Queries: {queries}")
         return queries
     
     def _calc_control_lrts(self, agent):
@@ -209,7 +210,7 @@ class BeaconEnv(Env):
             sorted_gene_indices = np.argsort(ind[:, 1]) # Sort the MAFs 
             mask_one = (ind[sorted_gene_indices, 0] == 1) #Get the SNPs
             mask_zero = (ind[sorted_gene_indices, 0] == 0) #Get the Non SNPs
-            queries = torch.concatenate((sorted_gene_indices[mask_one], sorted_gene_indices[mask_zero]))
+            queries = torch.concatenate((sorted_gene_indices[mask_one], sorted_gene_indices[mask_zero]))[:self.max_steps]
             state = copy.deepcopy(self.beacon_state)
             statee = torch.concatenate([state, self.scontrol_state])
             # print("Queries: {}".format(queries))
@@ -245,7 +246,7 @@ class BeaconEnv(Env):
         current_query = torch.zeros(size=(self.args.beacon_size, self.args.gene_size))
         lrts = torch.zeros(size=(self.args.beacon_size, self.args.gene_size))
 
-        print(temp_maf.size(), responses.size(), torch.Tensor(self.s_beacon.T).size())
+        # print(temp_maf.size(), responses.size(), torch.Tensor(self.s_beacon.T).size())
         self.beacon_state = torch.stack([torch.Tensor(self.s_beacon.T), temp_maf, responses, current_query, lrts], dim=-1)
         # return self.beacon_state
 
@@ -298,8 +299,8 @@ class BeaconEnv(Env):
 
 
         # Prepare index arrays for future use
-        genes = np.random.permutation(self.beacon.shape[0])[:self.args.gene_size] # Randomly select gene indexes
-        shuffled = np.random.permutation(self.beacon.shape[1]) # Randomly select population indexes
+        genes = np.random.RandomState(seed=3).permutation(self.beacon.shape[0])[:self.args.gene_size] # Randomly select gene indexes
+        shuffled = np.random.RandomState(seed=3).permutation(self.beacon.shape[1]) # Randomly select population indexes
 
 
         # Difine different groups of people
@@ -373,3 +374,9 @@ class BeaconEnv(Env):
             for gene_idx, gene_data in enumerate(beacon_data):
                 snp, maf, res, current, lrts = gene_data
                 self.log_env.writerow([episode, beacon_idx+1, gene_idx+1, snp.detach().cpu().numpy(), maf.detach().cpu().numpy(), res.detach().cpu().numpy(), lrts.detach().cpu().numpy(), self.pvalues.detach().cpu().numpy()[beacon_idx]])
+        self.log_env.writerow("--------------------------------------------------------------")
+        for beacon_idx, beacon_data in enumerate(self.scontrol_state):
+            for gene_idx, gene_data in enumerate(beacon_data):
+                snp, maf, res, current, lrts = gene_data
+                self.log_env.writerow([episode, beacon_idx+1, gene_idx+1, snp.detach().cpu().numpy(), maf.detach().cpu().numpy(), res.detach().cpu().numpy(), lrts.detach().cpu().numpy(), 0])
+        self.log_env.writerow("$$$$$$$$$$$$$$$$$$$$$$")

@@ -22,7 +22,7 @@ def train(args:object, env:object, ppo_agent:object):
     run_num = 0
     current_num_files = next(os.walk(args.results_dir))[2]
     run_num = len(current_num_files)
-    log_f_name = args.results_dir + '/PPO_' + "_log_" + str(run_num) + ".csv"
+    log_f_name = args.results_dir + '/PPO_' + "_log_" + str(run_num) + ".txt"
 
     print("current logging run number for " + " : ", run_num)
     print("logging at : " + log_f_name)
@@ -36,7 +36,7 @@ def train(args:object, env:object, ppo_agent:object):
     print("save checkpoint path : " + checkpoint_path)
 
     log_f = open(log_f_name,"w+")
-    log_f.write('episode,timestep,reward\n')
+    # log_f.write('episode,timestep,reward\n')
 
 
     # printing and logging variables
@@ -60,6 +60,8 @@ def train(args:object, env:object, ppo_agent:object):
 
     # training loop
     while i_episode <= args.episodes:
+        log_f.write("Episode: {}".format(i_episode))
+
         print("Episode: ", i_episode)
 
         state = env.reset()[1]
@@ -70,13 +72,19 @@ def train(args:object, env:object, ppo_agent:object):
         current_ep_ureward = 0
         current_lrt_values = []
 
+        beacon_actions = []
+
 
         for t in range(1, args.max_queries+1):
+            # log_f.write("State: {}".format(state))
+            
             # print("State: ", state)
             # select action with policy
             state = torch.flatten(state)
             # print(state.size())
             action = ppo_agent.select_action(state)
+            beacon_actions.append(action)
+
             # print("Beacon Action: ", action)
             state, reward, done, rewards, p_values = env.step(action)
 
@@ -95,9 +103,12 @@ def train(args:object, env:object, ppo_agent:object):
             if done:
                 break
 
+        print("Beacon Action: {}".format(beacon_actions))
+
         
         if i_episode % 10 == 0:
-            print("Episode: ", i_episode)
+            print("\n###########################################\n")
+            # print("Episode: ", i_episode)
             print("Episode Reward: ", current_ep_reward)
             print("Episode Privacy Reward: ", current_ep_preward)
             print("Episode Utility Reward: ", current_ep_ureward)
@@ -108,6 +119,8 @@ def train(args:object, env:object, ppo_agent:object):
             plt.axhline(y=0.05, color='r', linestyle='--')
             plt.show()
             print("Victim Episode pvalue: ", p_values[-1])
+            print("\n###########################################\n")
+
 
         # update PPO agent
         if i_episode % args.update_freq == 0 and i_episode>0:
@@ -143,11 +156,13 @@ def train(args:object, env:object, ppo_agent:object):
             print("model saved")
             print("Elapsed Time  : ", datetime.now().replace(microsecond=0) - start_time)
             print("--------------------------------------------------------------------------------------------")
-
+        
+        action_std_decay_rate = 0.05    # linearly decay action_std (action_std = action_std - action_std_decay_rate)
+        min_action_std = 0.05  
 
         # # if continuous action space; then decay action std of ouput action distribution
-        # if has_continuous_action_space and i_episode % (args.episodes/4)==0 and i_episode>0 == 0:
-        #     ppo_agent.decay_action_std(action_std_decay_rate, min_action_std)
+        if i_episode % 50==0 and i_episode>0 == 0:
+            ppo_agent.decay_action_std(action_std_decay_rate, min_action_std)
 
         total_erewards.append(current_ep_reward)
         utility_erewards.append(current_ep_ureward)
@@ -169,8 +184,8 @@ def train(args:object, env:object, ppo_agent:object):
             # plot_lrt_stats(lrt_values_list)
             # plot_lrts(lrt_values_list)
 
-        # if i_episode % args.val_freq == 0:
-        #     val(args, ppo_agent=copy.deepcopy(ppo_agent), env=env)
+        if i_episode>0 and i_episode % args.val_freq == 0:
+            val(args, ppo_agent=copy.deepcopy(ppo_agent), env=env)
 
         i_episode += 1
 
@@ -186,7 +201,9 @@ def train(args:object, env:object, ppo_agent:object):
     print("============================================================================================")
 
 def val(args, ppo_agent, env):
+    print("\n=============================================\n")
     print("Start Validating Using Optimal Attacker")
+    ppo_agent.policy_old.actor.eval()
 
     state = env.reset()[1]
     total_reward = 0
@@ -201,26 +218,31 @@ def val(args, ppo_agent, env):
     done = False
     while not done:
         state = torch.flatten(state)
-        action, _, _ = ppo_agent.policy.act(state.to(args.device))
+        with torch.no_grad():
+            action, _, _ = ppo_agent.policy_old.act(state.to(args.device))
+
+        print("Beacon Action: ", action)
 
         action = action.squeeze().item()
-        rounded_number = round(action, 6)  # Round to 6 decimal places
-        rounded_list = [rounded_number]
+        # rounded_number = round(action, 6)  # Round to 6 decimal places
         #action = action.squeeze().item()
-        state, reward, done, rewards, lrt_values = env.step(rounded_list)
+        state, reward, done, rewards, lrt_values = env.step([action])
 
         total_reward += reward
         current_preward += rewards[0]
         current_ureward += rewards[1]
 
+        print("Current Privacy Reward: {}\nCurrent Utility Reward: {}\nThis Episode Reward: {}\nTotal Reward: {}".format(rewards[0], rewards[1], reward, total_reward))
         total_rewards.append(total_reward)
         utility_rewards.append(current_ureward)
         privacy_rewards.append(current_preward)
         lrt_values_list.append(lrt_values)
 
-    plot_rewards(total_rewards, utility_rewards, privacy_rewards)
-    plot_individual_rewards(total_reward, utility_rewards, privacy_rewards)
-    plot_lrts(lrt_values_list)
-    plot_lrt_stats(lrt_values_list)
-    print(f"Validation completed, total reward: {total_reward}")
+    # plot_rewards(total_rewards, utility_rewards, privacy_rewards)
+    # plot_individual_rewards(total_reward, utility_rewards, privacy_rewards)
+    # plot_lrts(lrt_values_list)
+    # plot_lrt_stats(lrt_values_list)
+    print(f"Validation completed, total reward")
+    print("\n=============================================\n")
+    ppo_agent.policy_old.actor.train()
     return total_reward
