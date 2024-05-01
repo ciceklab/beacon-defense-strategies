@@ -16,7 +16,7 @@ def train(args:object, env:object, ppo_agent:object):
 
     print("============================================================================================")
 
-    env._calc_control_lrts(agent=ppo_agent)
+    # env._calc_control_lrts(agent=ppo_agent)
 
     ################### Logging ###################
     run_num = 0
@@ -84,6 +84,7 @@ def train(args:object, env:object, ppo_agent:object):
             # print(state.size())
             action = ppo_agent.select_action(state)
             beacon_actions.append(action)
+            print("Beacon Action: {}".format(action))
 
             # print("Beacon Action: ", action)
             state, reward, done, rewards, p_values = env.step(action)
@@ -103,7 +104,6 @@ def train(args:object, env:object, ppo_agent:object):
             if done:
                 break
 
-        print("Beacon Action: {}".format(beacon_actions))
 
         
         if i_episode % 10 == 0:
@@ -147,7 +147,7 @@ def train(args:object, env:object, ppo_agent:object):
 
             print_running_reward = 0
             print_running_episodes = 0
-            env._calc_control_lrts(agent=ppo_agent)
+            # env._calc_control_lrts(agent=ppo_agent)
 
             # save model weights
             print("--------------------------------------------------------------------------------------------")
@@ -185,6 +185,7 @@ def train(args:object, env:object, ppo_agent:object):
             # plot_lrts(lrt_values_list)
 
         if i_episode>0 and i_episode % args.val_freq == 0:
+            env.reset(True)
             val(args, ppo_agent=copy.deepcopy(ppo_agent), env=env)
 
         i_episode += 1

@@ -7,7 +7,7 @@ from torch.distributions import Categorical
 device = torch.device('cpu')
 
 if(torch.cuda.is_available()):
-    device = torch.device('cuda:4')
+    device = torch.device('cuda:1')
     torch.cuda.empty_cache()
     print("Device set to : " + str(torch.cuda.get_device_name(device)))
 else:

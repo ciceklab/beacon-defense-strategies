@@ -32,6 +32,7 @@ class BeaconEnv(Env):
         self._init_control()
 
 
+
         self.attacker_action = 0
         self.beacon_action = 0
         self.altered_probs = 0
@@ -46,6 +47,7 @@ class BeaconEnv(Env):
         if self.args.attacker_type == "optimal":
             self.optimal_queries = self._init_optimal_attacker()
             # print(self.optimal_queries)
+        self._calc_control_lrts()
 
 
         log_env_name = args.results_dir + "/env" + '/PPO_' + str(len(next(os.walk(args.results_dir))[2])) + ".csv"
@@ -56,11 +58,11 @@ class BeaconEnv(Env):
 
 
     # Reset the environment after an episode
-    def reset(self) -> torch.Tensor:
+    def reset(self, resett=False) -> torch.Tensor:
         # print("RESET ENV")
         self.reset_counter+=1
 
-        if self.reset_counter%self.args.pop_reset_freq==0 and self.reset_counter>0:
+        if (self.reset_counter%self.args.pop_reset_freq==0 and self.reset_counter>0) or resett :
             print("Reseting the Populations")
             self._reset_populations()
             self.reset_counter = 0
@@ -74,9 +76,10 @@ class BeaconEnv(Env):
         self._init_beacon()
         self._init_control()
 
-        if self.reset_counter%self.args.pop_reset_freq==0 and self.reset_counter>0:
+        if (self.reset_counter%self.args.pop_reset_freq==0 and self.reset_counter>0) or resett:
             if self.args.attacker_type == "optimal":
                 self.optimal_queries = self._init_optimal_attacker()
+            self._calc_control_lrts()
 
 
         if self.current_step==0:
@@ -86,7 +89,7 @@ class BeaconEnv(Env):
             # print(self.control_lrts[:, 0].size())
 
             # current_control=copy.deepcopy(self.scontrol_state)
-            self.scontrol_state[:,:,2] = (self.control_responses[:, self.current_step].view(self.args.control_size, 1).repeat(1, self.args.gene_size))
+            # self.scontrol_state[:,:,2] = (self.control_responses[:, self.current_step].view(self.args.control_size, 1).repeat(1, self.args.gene_size))
             self.scontrol_state[:, :, 4] = (self.control_lrts[:, self.current_step].view(self.args.control_size, 1).repeat(1, self.args.gene_size))
 
             observation = torch.concatenate([current_beacon_s, self.scontrol_state])
@@ -161,7 +164,7 @@ class BeaconEnv(Env):
             current_beacon_s = copy.deepcopy(self.beacon_state)
             current_beacon_s[:, self.attacker_action, 3] = 1
             # current_control=copy.deepcopy(self.scontrol_state)
-            self.scontrol_state[:,:,2] = (self.control_responses[:, self.current_step].view(self.args.control_size, 1).repeat(1, self.args.gene_size))
+            # self.scontrol_state[:,:,2] = (self.control_responses[:, self.current_step].view(self.args.control_size, 1).repeat(1, self.args.gene_size))
             self.scontrol_state[:, :, 4] = (self.control_lrts[:, self.current_step].view(self.args.control_size, 1).repeat(1, self.args.gene_size))
 
 
@@ -177,7 +180,7 @@ class BeaconEnv(Env):
             self.attacker_action = self.optimal_queries[self.current_step]
         else:
             raise NotImplemented
-        print("Attacker Attacked {} Query".format(self.attacker_action))
+        print("Step {} Attacker Attacked {} Query".format(self.current_step, self.attacker_action))
 
     def _reset_populations(self)->None:
         self.s_beacon, self.s_control, self.a_control, self.victim, self.mafs = self.get_populations()
@@ -193,16 +196,17 @@ class BeaconEnv(Env):
     def _init_optimal_attacker(self):
         maf_values = self.beacon_state[0, :, 1]
         sorted_gene_indices = np.argsort(maf_values) # Sort the MAFs 
+        print("Victim : {}".format(self.victim))
+        print("Victim Sorted Genes: {}".format(sorted_gene_indices))
         mask_one = (self.victim[sorted_gene_indices] == 1) #Get the SNPs
         mask_zero = (self.victim[sorted_gene_indices] == 0) #Get the SNPs
         queries = torch.concatenate((sorted_gene_indices[mask_one], sorted_gene_indices[mask_zero]))[:self.max_steps]
         print(f"Attacker Queries: {queries}")
         return queries
     
-    def _calc_control_lrts(self, agent):
+    def _calc_control_lrts(self):
         # print(self.args.control_size, len(self.optimal_queries))
         lrts = torch.zeros(size=(self.args.control_size, len(self.optimal_queries)))
-        responses = torch.zeros(size=(self.args.control_size, len(self.optimal_queries)))
         # print(lrts.size())
         for index, ind in enumerate(self.scontrol_state):
             # print("IND", ind)
@@ -216,26 +220,30 @@ class BeaconEnv(Env):
             # print("Queries: {}".format(queries))
             # print(statee, statee.size())
             for im, query in enumerate(queries):
+                # print(index, im)
                 # print("Query: ", query)
 
-                statee[:, query, 3] = 1
-                agent.policy_old.actor.eval()
-                with torch.no_grad():
-                    response, _, _ = agent.policy_old.act(torch.FloatTensor(torch.flatten(statee)).to(self.args.device))
+                # statee[:, query, 3] = 1
+                # agent.policy_old.actor.eval()
+                # with torch.no_grad():
+                #     response, _, _ = agent.policy_old.act(torch.FloatTensor(torch.flatten(statee)).to(self.args.device))
                 # print("response: {}".format(response))
 
 
-                statee[:, query, 2] = torch.as_tensor(response)
+                statee[:, query, 2] = torch.as_tensor(1)
 
                 lrt = self._calc_group_lrts(statee, True)[self.args.beacon_size + index]
-                statee[:, query, 3] = 0
+                # statee[:, query, 3] = 0
+                # print(statee)
                 # print(statee)
 
+                # print("LRT ", lrt)
+
                 lrts[index, im] = lrt
-                responses[index, im] = response
+                # responses[index, im] = response
             self.control_lrts = lrts
-            self.control_responses = responses
-        agent.policy_old.actor.train()
+            # self.control_responses = responses
+        # agent.policy_old.actor.train()
         return None
 
 
@@ -277,13 +285,19 @@ class BeaconEnv(Env):
         beacon_lrts = self._calc_group_lrts(self.beacon_state, True)
         control_lrts = self.control_lrts[:, self.current_step]
 
+        print("Victim's LRT: {}".format(beacon_lrts[-1]))
         # print(len(beacon_lrts), len(control_lrts))
-        # print("Control LRTS: ", self.control_lrts[:, self.current_step])
+        print("Control LRTS: ", self.control_lrts[:, self.current_step])
 
         pvalues=[]
         for blrt in beacon_lrts:
             pvalue=torch.sum(blrt >= control_lrts) / self.args.control_size
             pvalues.append(pvalue)
+        
+        print("Beacons min: {} and max: {} LRT".format(torch.min(beacon_lrts), torch.max(beacon_lrts)))
+        print("Threshold LRT: {}".format(torch.sort(control_lrts)[0][5]))
+
+        print("---------------------------------------------------------------------")
 
         # print(pvalues)
         if torch.any(torch.Tensor(pvalues) < 0):
@@ -299,8 +313,8 @@ class BeaconEnv(Env):
 
 
         # Prepare index arrays for future use
-        genes = np.random.RandomState(seed=3).permutation(self.beacon.shape[0])[:self.args.gene_size] # Randomly select gene indexes
-        shuffled = np.random.RandomState(seed=3).permutation(self.beacon.shape[1]) # Randomly select population indexes
+        genes = np.random.permutation(self.beacon.shape[0])[:self.args.gene_size] # Randomly select gene indexes
+        shuffled = np.random.permutation(self.beacon.shape[1]) # Randomly select population indexes
 
 
         # Difine different groups of people
@@ -331,7 +345,7 @@ class BeaconEnv(Env):
     def calculate_lrt(self, ind:torch.Tensor, error=0.001)->float:
         lrts = torch.zeros(self.args.gene_size)
 
-        nsnp_msk = (ind[:, 0] == 0) & (ind[:, 1] == 0)
+        nsnp_msk = (ind[:, 1] == 0)
         ind[nsnp_msk, 1] = torch.as_tensor(0.001)
 
         # print(person)
@@ -346,20 +360,24 @@ class BeaconEnv(Env):
         response = filtered_ind[:, 2]
 
 
-        DN_i = (1 - maf).pow(2 * self.args.beacon_size) 
-        DN_i_1 = (1 - maf).pow(2 * self.args.beacon_size - 2)
+        DN_i = (1 - maf).pow(2 * 3) 
+        DN_i_1 = (1 - maf).pow(2 * 3 - 2)
 
         # Genome == 1
-        log1 = torch.log(DN_i) - torch.log(error * DN_i_1)
-        log2 = torch.log((error * DN_i_1 * (1 - DN_i))) - torch.log(DN_i * (1 - error * DN_i_1))
+        log1 = torch.log(DN_i) - torch.log(0.001 * DN_i_1)
+        log2 = torch.log((0.001 * DN_i_1 * (1 - DN_i))) - torch.log(DN_i * (1 - 0.001 * DN_i_1))
 
         # Genome == 0
-        log3 = torch.log(DN_i) - torch.log((1 - error) * DN_i_1)
-        log4 = torch.log((1 - error) * DN_i_1 * (1 - DN_i)) - torch.log(DN_i * (1 - DN_i_1 * (1 - error)))
+        log3 = torch.log(DN_i) - torch.log((1 - 0.001) * DN_i_1)
+        log4 = torch.log((1 - 0.001) * DN_i_1 * (1 - DN_i)) - torch.log(DN_i * (1 - DN_i_1 * (1 - 0.001)))
 
         x_hat_i = (genome * response) + ((1 - genome) * (1 - response))
-
-        lrts[~queried_spns_msk] = (log1 + log2 * x_hat_i)* genome + (log3 + log4 * x_hat_i) * (1 - genome)
+        lrt = (log1 + log2 * x_hat_i)* genome + (log3 + log4 * x_hat_i) * (1 - genome)
+        # print("#############################, ")
+        # print(genome, maf, response)
+        
+        # print("#############################, ", lrt)
+        lrts[~queried_spns_msk] = lrt
         # print("lrts, lrts.size()", lrts, lrts.size())
         return lrts
 
