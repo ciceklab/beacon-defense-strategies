@@ -7,7 +7,7 @@ from torch.distributions import Categorical
 device = torch.device('cpu')
 
 if(torch.cuda.is_available()):
-    device = torch.device('cuda:1')
+    device = torch.device('cuda:0')
     torch.cuda.empty_cache()
     print("Device set to : " + str(torch.cuda.get_device_name(device)))
 else:
@@ -31,6 +31,16 @@ class RolloutBuffer:
         del self.state_values[:]
         del self.is_terminals[:]
 
+
+    def print_buffer(self):
+        for i in range(len(self.states)):
+            state = self.states[i]
+            action = self.actions[i]
+            reward = self.rewards[i]
+            print(f"State: {state}, Action: {action}, Reward: {reward}")
+
+
+            
 class ActorCritic(nn.Module):
     def __init__(self, state_dim, action_dim, has_continuous_action_space, action_std_init):
         super(ActorCritic, self).__init__()
@@ -44,7 +54,9 @@ class ActorCritic(nn.Module):
         # actor
         if has_continuous_action_space :
             self.actor = nn.Sequential(
-                            nn.Linear(state_dim, 1024),
+                            nn.Linear(state_dim, 2048),
+                            nn.Tanh(),
+                            nn.Linear(2048, 1024),
                             nn.Tanh(),
                             nn.Linear(1024, 1024),
                             nn.Tanh(),
@@ -53,9 +65,9 @@ class ActorCritic(nn.Module):
                         )
         else:
             self.actor = nn.Sequential(
-                            nn.Linear(state_dim, 256),
+                            nn.Linear(state_dim, 1024),
                             nn.Tanh(),
-                            nn.Linear(256, 256),
+                            nn.Linear(1024, 256),
                             nn.Tanh(),
                             nn.Linear(256, action_dim),
                             nn.Softmax(dim=-1)
@@ -66,9 +78,9 @@ class ActorCritic(nn.Module):
         self.critic = nn.Sequential(
                         nn.Linear(state_dim, 1024),
                         nn.Tanh(),
-                        nn.Linear(1024, 1024),
+                        nn.Linear(1024, 256),
                         nn.Tanh(),
-                        nn.Linear(1024, 1)
+                        nn.Linear(256, 1)
                     )
 
     def set_action_std(self, new_action_std):
@@ -154,6 +166,10 @@ class PPO:
                         {'params': self.policy.critic.parameters(), 'lr': lr_critic}
                     ])
 
+
+        # self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=10, gamma=0.1)
+        self.scheduler = torch.optim.lr_scheduler.CyclicLR(self.optimizer, base_lr=0.00001, max_lr=0.001, cycle_momentum=False, mode='triangular2', step_size_up=7, step_size_down=5)
+
         self.policy_old = ActorCritic(state_dim, action_dim, has_continuous_action_space, action_std_init).to(device)
         self.policy_old.load_state_dict(self.policy.state_dict())
 
@@ -230,6 +246,7 @@ class PPO:
             discounted_reward = reward + (self.gamma * discounted_reward)
             rewards.insert(0, discounted_reward)
 
+
         # Normalizing the rewards
         rewards = torch.tensor(rewards, dtype=torch.float32).to(device)
         rewards = (rewards - rewards.mean()) / (rewards.std() + 1e-7)
@@ -240,8 +257,11 @@ class PPO:
         old_logprobs = torch.squeeze(torch.stack(self.buffer.logprobs, dim=0)).detach().to(device)
         old_state_values = torch.squeeze(torch.stack(self.buffer.state_values, dim=0)).detach().to(device)
 
+########################################################
+        # old_states=old_states.unsqueeze(dim=1)
         # print("Old States: ", old_states.size())
         # print("Rewards: ", rewards.size())
+########################################################
 
 
         # calculate advantages
@@ -266,17 +286,22 @@ class PPO:
 
             # final loss of clipped objective PPO
             loss = -torch.min(surr1, surr2) + 0.5 * self.MseLoss(state_values, rewards) - 0.01 * dist_entropy
-
+            # print("loss size", loss.size())
             # take gradient step
             self.optimizer.zero_grad()
             loss.mean().backward()
             self.optimizer.step()
-
+    
         # Copy new weights into old policy
         self.policy_old.load_state_dict(self.policy.state_dict())
 
         # clear buffer
         self.buffer.clear()
+
+        self.scheduler.step()
+
+        for i, param_group in enumerate(self.optimizer.param_groups):
+            print(f'Param Group {i}, Learning Rate: {param_group["lr"]}')
 
 
     def save(self, checkpoint_path):

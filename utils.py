@@ -1,11 +1,135 @@
 import matplotlib.pyplot as plt
 import numpy as np
+# import pygame
+from matplotlib_inline.backend_inline import FigureCanvas
+import csv
+
+import torch
 
 
-def plot_rewards(losses1, losses2, losses3, path=None):
+#######################################LRT
+def calculate_ind_lrt(ind:torch.Tensor, gene_size, number_of_people=60, error=0.001)->float:
+    lrts = torch.zeros(gene_size, dtype=torch.double)
+    ind = ind.double()
+
+    # Zero MAFs
+    nsnp_msk = (ind[:, 1] == 0)
+    ind[nsnp_msk, 1] = torch.as_tensor(0.001)
+
+    queried_spns_msk = ind[:, 2] == -1 #Responses
+    filtered_ind = ind[~queried_spns_msk]
+
+    genome = filtered_ind[:, 0]
+    maf = filtered_ind[:, 1]
+    response = filtered_ind[:, 2]
+
+    DN_i = (1 - maf).pow(2 * (number_of_people)) 
+    DN_i_1 = (1 - maf).pow(2 * (number_of_people) - 2)
+
+    log1 = torch.log(DN_i) - torch.log(0.001 * DN_i_1)
+    log2 = torch.log((0.001 * DN_i_1 * (1 - DN_i))) - torch.log(DN_i * (1 - 0.001 * DN_i_1))
+
+    lrt = (log1+ log2 * response)* genome# + (log3 + log4 * x_hat_i) * (1 - genome)
+    lrts[~queried_spns_msk] = lrt
+    # print("lrts, lrts.size()", lrts, lrts.size())
+    return lrts
+
+
+
+def lrt(number_of_people, genome, maf, response):
+    genome = torch.as_tensor(genome, dtype=torch.double)
+    maf =   torch.as_tensor(maf, dtype=torch.double)
+    response =  torch.as_tensor(response, dtype=torch.double)
+
+    if maf == 0: maf = torch.as_tensor(0.001)
+
+
+    DN_i = (1 - maf).pow(2 * number_of_people) 
+    DN_i_1 = (1 - maf).pow(2 * number_of_people - 2)
+
+    # Genome == 1
+    log1 = torch.log(DN_i) - torch.log(0.001 * DN_i_1)
+    log2 = torch.log((0.001 * DN_i_1 * (1 - DN_i))) - torch.log(DN_i * (1 - 0.001 * DN_i_1))
+
+    lrt = (log1 + log2 * response)* genome #+ (log3  + log4 * x_hat_i) * (1 - genome)
+
+    # print("=================================")
+    
+    # print(DN_i, DN_i_1)
+    # print(log1,log2)
+    # print(genome, maf, response, lrt)
+    # print("=================================")
+
+    return lrt
+
+
+
+
+#########################################LOG
+
+# def create_csv(results_dir, name):
+#     log_env_name = results_dir  + '/logs/' + name + '.csv'
+#     print(log_env_name+ "Sssssssssssssss")
+#     log_env = csv.writer(open(log_env_name,"w+"))
+#     log_env.writerow(["Episode", "Query", "Beacon", "Gene", "SNP", "MAF", "RES", "LRT"])
+#     return log_env
+
+# # log tensor data into a CSV file
+# def log_env(info, episode, step, log_env):
+#     for beacon_idx, beacon_data in enumerate(info):
+#         for gene_idx, gene_data in enumerate(beacon_data):
+#             snp, maf, res, current, lrts = gene_data
+#             # print(res.detach().cpu().numpy(), lrts.detach().cpu().numpy())
+#             log_env.writerow([episode, step, beacon_idx, gene_idx, snp.detach().cpu().numpy(), maf.detach().cpu().numpy(), res.detach().cpu().numpy(), lrts.detach().cpu().numpy()])
+#     log_env.writerow("--------------------------------------------------------------")
+
+
+
+def create_csv(results_dir, name):
+    log_env_name = results_dir + '/logs/' + name + '.csv'
+    print(log_env_name)
+    with open(log_env_name, "w+", newline='') as csvfile:
+        log_env_writer = csv.writer(csvfile)
+        log_env_writer.writerow(["Episode", "Query", "Beacon", "Gene", "SNP", "MAF", "RES", "LRT"])
+    return log_env_name
+
+# log tensor data into a CSV file
+def log_env(info, episode, step, log_env_name):
+    with open(log_env_name, "a", newline='') as csvfile:
+        log_env_writer = csv.writer(csvfile)
+        for beacon_idx, beacon_data in enumerate(info):
+            for gene_idx, gene_data in enumerate(beacon_data):
+                snp, maf, res, current, lrts = gene_data
+                log_env_writer.writerow([episode, step, beacon_idx, gene_idx, snp.detach().cpu().numpy(), maf.detach().cpu().numpy(), res.detach().cpu().numpy(), lrts.detach().cpu().numpy()])
+        log_env_writer.writerow(["--------------------------------------------------------------"])
+
+
+# log tensor data into a CSV file
+def log_victim(info, episode, step, log_env_name):
+    with open(log_env_name, "a", newline='') as csvfile:
+        log_env_writer = csv.writer(csvfile)
+        for gene_idx, gene_data in enumerate(info):
+            snp, maf, res, lrts = gene_data
+            log_env_writer.writerow([episode, step, gene_idx, snp.detach().cpu().numpy(), maf.detach().cpu().numpy(), res.detach().cpu().numpy(), lrts.detach().cpu().numpy()])
+        log_env_writer.writerow(["--------------------------------------------------------------"])
+
+#########################################PLOT
+
+# params = {'legend.fontsize': 48,
+#         'figure.figsize': (54, 32),
+#         'axes.labelsize': 60,
+#         'axes.titlesize':60,
+#         'xtick.labelsize':60,
+#         'ytick.labelsize':60,
+#         'lines.linewidth': 10}
+
+# plt.rcParams.update(params)
+
+def plot_rewards(losses1, losses2, losses3, i_episode=0, path=None, sim=False):
     epochs = range(1, len(losses1) + 1) 
 
-    plt.figure(figsize=(10, 6))
+    fig = plt.figure()
+
 
     plt.plot(epochs, losses1, 'r', label='Total Rewards')
     plt.plot(epochs, losses2, 'g', label='Utility Rewards')
@@ -18,15 +142,29 @@ def plot_rewards(losses1, losses2, losses3, path=None):
 
     
     if path:
-        plt.savefig(path)
-    plt.show()
+        plt.savefig(f"{path}/rewards/rewards{i_episode}.png")
+    # plt.show()
+    plt.close()
+
+    if sim:
+        plt.grid(True)
+
+        canvas = FigureCanvas(fig)
+        canvas.draw()
+
+        renderer = canvas.get_renderer()
+        raw_data = renderer.tostring_rgb()
+
+        size = canvas.get_width_height()
+
+    # return pygame.image.fromstring(raw_data, size, "RGB")
 
 
 
-def plot_individual_rewards(losses1, losses2, losses3, path=None):
+def plot_individual_rewards(losses1, losses2, losses3, i_episode, path):
     epochs = range(1, len(losses1) + 1)  # Assuming all lists have the same length
 
-    plt.figure(figsize=(10, 6))
+    plt.figure()
 
     plt.subplot(3, 1, 1)
     plt.plot(epochs, losses1, 'r')
@@ -46,69 +184,35 @@ def plot_individual_rewards(losses1, losses2, losses3, path=None):
     plt.xlabel('Episodes')
     plt.ylabel('Rewards')
 
-    
-    if path:
-        plt.savefig(path)
-    plt.show()
+    plt.savefig(f"{path}/indrewards/indreward{i_episode}.png")
+    plt.close()
 
 
-def plot_lrts(lrt_values_list, group_size=10, path=None):
+def plot_lists(values, path, name, episode, thresh=None, xlabel='Episodes', ylabel='Values'):
+    fig, ax = plt.figure(), plt.gca()
+    ax.plot(np.arange(len(values)), values, label='Values', linewidth=2)
 
-    num_individuals = len(lrt_values_list[0])
-    num_plots = (num_individuals + group_size - 1) // group_size  #  ensure all individuals are used
+    if thresh is not None:
+        ax.axhline(y=thresh, color='r', linestyle='--', label='Threshold', linewidth=1.5)
 
-    # Create a figure with subplots
-    fig, axes = plt.subplots(num_plots, 1, figsize=(10, 5 * num_plots), constrained_layout=True)
-    # Handle the case when there is only one subplot
-    '''if num_plots == 1:
-        axes = [axes]'''
-    #For each plot
-    for i in range(num_plots):
-        start_index = i * group_size
-        end_index = min(start_index + group_size, num_individuals)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    ax.legend()
+    ax.grid(True)
 
-        # For each individual
-        for individual_index in range(start_index, end_index):
-            # Extract this individual's LRT values from all time points
-            individual_lrt_values = [time_point[individual_index] for time_point in lrt_values_list]
+    plt.tight_layout()
+    plt.savefig(f"{path}/{name}_{episode}.png")
+    # plt.show()
+    plt.close(fig)
 
-            axes[i].plot(individual_lrt_values, marker='o', linestyle='-', label=f'Individual {individual_index + 1}')
+    # plt.grid(True)
 
-        axes[i].set_title(f'LRT Values for Individuals {start_index + 1} to {end_index}')
-        axes[i].set_xlabel('Episode')
-        axes[i].set_ylabel('LRT Value')
-        axes[i].grid(True)
-        axes[i].legend()
+    # canvas = FigureCanvas(fig)
+    # canvas.draw()
 
+    # renderer = canvas.get_renderer()
+    # raw_data = renderer.tostring_rgb()
 
-    if path:
-        plt.savefig(path)
-    plt.show()
+    # size = canvas.get_width_height()
 
-
-
-
-
-def plot_lrt_stats(lrt_values_list, path=None):
-    lrt_array = np.array(lrt_values_list)
-
-    mean_lrt_values = np.mean(lrt_array, axis=1)
-    variance_lrt_values = np.var(lrt_array, axis=1)
-
-    plt.figure(figsize=(10, 6))
-    time_points = range(1, len(lrt_values_list) + 1)
-
-    plt.plot(time_points, mean_lrt_values, 'g-', label='Mean LRT Values', marker='o')
-    plt.plot(time_points, variance_lrt_values, 'r-', label='Variance of LRT Values', marker='o')
-
-    plt.title('Mean and Variance of LRT Values ')
-    plt.xlabel('Episode')
-    plt.ylabel('LRT Values')
-    plt.legend()
-    plt.grid(True)
-    if path:
-        plt.savefig(path)
-    # Show the plot
-    plt.show()
-
-
+    # return pygame.image.fromstring(raw_data, size, "RGB")
