@@ -1,5 +1,5 @@
 import numpy as np
-from scripts.common.lrt import get_optimal_lrt, get_optimal_lrt_victim, p_value, p_value_ind
+from common.lrt import get_optimal_lrt, get_optimal_lrt_victim, p_value, p_value_ind
 
 
 class UtilityAttacker:
