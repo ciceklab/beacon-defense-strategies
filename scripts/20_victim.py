@@ -1,4 +1,7 @@
+from collections import defaultdict
 from itertools import permutations, product
+import multiprocessing
+import time
 import numpy as np
 import warnings
 import matplotlib.pyplot as plt
@@ -51,6 +54,7 @@ def retrive_optimal_strategies(victims, num_query, maf_values):
     return strategies
 
 
+# TODO: I think we don't need this func
 def retrive_all_attacker(attacker_strategies, num_queries):
     results = []
 
@@ -71,6 +75,87 @@ def show_strategy_info(strategies, victims, s_beacon):
         print(f"Not exsisting SNP index: {A[~s_beacon[A].any(axis=1)]}")
         print(
             f"Victim: {victim[A]}\nAttacker Strategy Set: {A}\nMAF: {maf_values[A]}")
+
+
+def default_to_regular(d):
+    if isinstance(d, defaultdict):
+        d = {k: default_to_regular(v) for k, v in d.items()}
+    return d
+
+
+# TODO: very ugly function. fix it.
+def func(params):
+    a = params[0]  # strategy sets of Attacker
+    s = params[1]  # strategy sets of Sharer
+    A = params[2]
+    S = params[3]
+    i = params[4]
+    utilities = defaultdict(lambda: defaultdict(lambda: (0, 0)), params[5])
+
+    # utility of sharer
+    us = np.array([
+        np.array([
+            utility_beacon.utility_sharer(np.append(a, ai), np.append(s, si), i)[0][-1] +
+            utilities[a+(ai,)][s+(si,)][1] if ai not in a else -np.inf for si in S]) for ai in A
+    ])
+    # Optimum sharer strategy
+    os = np.argmax(us, axis=1)
+    bus = np.choose(os, us.T)
+
+    # Find optimum strategy for all possible ai
+    ua = np.array([utility_attacker.utility_attacker(np.append(a, ai), np.append(s, S[os[t]]), i, -1)[0][-1] +
+                  utilities[a+(ai,)][s+(S[os[t]],)][0] if ai not in a else -np.inf for t, ai in enumerate(A)])
+    oa = np.argmax(ua)
+    bua = ua[oa]
+    return a, s, A[oa], S[os[oa]], bua, bus[oa]
+
+
+# TODO: very ugly function. fix it.
+def build_tree(num_query, attacker_strategy, sharer_strategy):
+    utilities = defaultdict(lambda: defaultdict(lambda: (0, 0)))
+    strategies = defaultdict(lambda: defaultdict(lambda: (0, 0)))
+
+    i = num_query
+    times = []
+    while i > 1:
+        start = time.time()
+
+        # Generate all possible past strategy combinations
+        all_attacker = list(permutations(attacker_strategy, i-1))
+        all_sharer = list(product(sharer_strategy, repeat=i-1))
+        print(f'i is {i}')
+
+        #  Param grid for multiprocessor pool unit
+        paramlist = list(product(all_attacker, all_sharer))
+        paramlist = list(map(lambda x: x + (attacker_strategy,
+                         sharer_strategy, i, default_to_regular(utilities)), paramlist))
+        print('params are generated!')
+        pool = multiprocessing.Pool(39)
+
+        try:
+            res = pool.map(func, paramlist)
+            print('Started all sub processes')
+            for r in res:
+                strategies[r[0]][r[1]] = (r[2], r[3])
+                utilities[r[0]][r[1]] = (r[4], r[5])
+            i -= 1
+
+        except:
+            print("Something went wrong. Killing all of the processes")
+            pool.terminate()
+            raise
+
+        finally:
+            print('iteration is over. Killing child processes')
+            pool.close()
+            pool.join()
+
+            end = time.time()
+            elapsed_time = end - start
+            print(f'Time for {i} is {elapsed_time}')
+            times.append(elapsed_time)
+
+    return utilities, strategies
 
 
 if __name__ == "__main__":
@@ -127,3 +212,17 @@ if __name__ == "__main__":
     show_strategy_info(attackers_strategies, victims.T, s_beacon)
 
     print("*** Strategy info - End ***")
+
+    print("\n")
+    print("Building Tree")
+
+    strategies = []
+    utilities = []
+    for i in range(victims.shape[1]):
+        print("--------------------")
+        print(f"User index: {i}")
+        utility, strategy = build_tree(
+            NUM_QUERIES, attackers_strategies[i], sharer_strategies)
+
+        strategies.append(strategy)
+        utilities.append(utility)
