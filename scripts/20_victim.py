@@ -218,10 +218,10 @@ def get_greedy_solution(A, S, num_query):
         # Obtain utilities for the step i
         au_grd[i+1], su_grd[i+1] = (bua, bus[oa])
 
-        print("A: ", a_grd, "\nS: ", s_grd)
-        print("Utilities: ", au_grd[i+1], su_grd[i+1], "\n")
+        # print("A: ", a_grd, "\nS: ", s_grd)
+        # print("Utilities: ", au_grd[i+1], su_grd[i+1], "\n")
 
-    return a_grd, s_grd
+    return a_grd, s_grd, au_grd, su_grd
 
 
 def plot_beacon_utilities(utilities, solution_name):
