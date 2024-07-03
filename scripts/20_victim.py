@@ -352,18 +352,22 @@ if __name__ == "__main__":
     greedy_sharer_strategies = np.zeros((victims.shape[1], NUM_QUERIES))
     greedy_attacker_strategies = np.zeros(
         (victims.shape[1], NUM_QUERIES), dtype=np.int64)
+    greedy_sharer_utilities = np.zeros((victims.shape[1], NUM_QUERIES+1))
+    greedy_attacker_utilities = np.zeros((victims.shape[1], NUM_QUERIES+1))
     print("\n*** Greedy Solution - Start ***")
     for i in range(victims.shape[1]):
         print("--------------------")
         print(f"User index: {i}")
-        greedy_attacker_strategies[i], greedy_sharer_strategies[i] = get_greedy_solution(
+        greedy_attacker_strategies[i], greedy_sharer_strategies[i], greedy_attacker_utilities[i],  greedy_sharer_utilities[i] = get_greedy_solution(
             attackers_strategies[i], sharer_strategies, NUM_QUERIES)
         print(
-            f"Attacker: {greedy_attacker_strategies[i]}, Beacon: {greedy_sharer_strategies[i]}")
+            f"Strategies # Attacker: {greedy_attacker_strategies[i]}, Beacon: {greedy_sharer_strategies[i]}")
+        print(
+            f"Utilities # Attacker: {greedy_attacker_utilities[i]}, Beacon: {greedy_sharer_utilities[i]}")
 
     print("*** Greedy Solution - End ***\n")
     
     print("Generating plots...")
-    plot_beacon_utilities(greedy_sharer_strategies, "Greedy")
-    plot_attacker_utilities(greedy_attacker_strategies, "Greedy")
+    plot_beacon_utilities(greedy_sharer_utilities, "Greedy")
+    plot_attacker_utilities(greedy_attacker_utilities, "Greedy")
     print("Plots are generated.")
