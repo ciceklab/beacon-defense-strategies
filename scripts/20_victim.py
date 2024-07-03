@@ -18,7 +18,7 @@ NUM_QUERIES = 4
 POSSBILE_SNPS = 4
 EXIST_COUNT = 4
 BEACON_NOT_EXIST_COUNT = 0
-FIGURES_SAVE_DIR = "../results"
+FIGURES_SAVE_DIR = "/home/masoud/DP_Project/results"
 
 
 def sharer_u1(ai, si, p_prevs, p_currents, num_query, lrt_values):
