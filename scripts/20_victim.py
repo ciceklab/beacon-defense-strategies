@@ -21,6 +21,9 @@ BEACON_NOT_EXIST_COUNT = 0
 FIGURES_SAVE_DIR = "/home/masoud/DP_Project/results"
 
 
+# TODO: fix the dirty code. My software engineer side is deeply sorry for this mess.
+
+
 def sharer_u1(ai, si, p_prevs, p_currents, num_query, lrt_values):
     q1 = np.quantile(lrt_values, 0.25)
     target_LRTs = lrt_values[lrt_values < q1]
@@ -51,6 +54,23 @@ def retrive_optimal_strategies(victims, num_query, maf_values):
 
     for ind, victim in enumerate(victims.T):
         strategies[ind] = optimal_scenario(maf_values, num_query, victim)
+
+    return strategies
+
+
+def retrive_random_strategies(exist_count, snp_count, possible_snps):
+    strategies = np.zeros((victims.shape[1], snp_count), dtype=np.int64)
+
+    for ind, victim in enumerate(victims.T):
+        A = np.random.choice(possible_snps, snp_count)
+
+        while np.sum(victim[A]) < exist_count or not maf_values[A].all() \
+                or np.sum(maf_values[A] * victim[A]) >= 0.15 * exist_count:
+            # print(np.sum(victim[A]))
+            A = np.random.choice(possible_snps, snp_count)
+
+        strategies[ind] = A
+        print(A)
 
     return strategies
 
@@ -159,7 +179,7 @@ def build_tree(num_query, attacker_strategy, sharer_strategy):
     return utilities, strategies
 
 
-def get_equlibrium_solution(A, S, num_query, utilities, strategies):
+def get_equlibrium_solution(A, S, num_query, utilities, strategies, victim_ind):
     # i = 1
     # Final step, first query
     us = np.array([np.array([utility_beacon.utility_sharer(np.array([ai]), np.array([si]), 1)[
@@ -168,7 +188,7 @@ def get_equlibrium_solution(A, S, num_query, utilities, strategies):
     bus = np.choose(os, us.T)
 
     # Find optimum strategy for all possible ai
-    ua = np.array([utility_attacker.utility_attacker(np.array([ai]), np.array([S[os[t]]]), 1, -1)
+    ua = np.array([utility_attacker.utility_attacker(np.array([ai]), np.array([S[os[t]]]), 1, victim_ind)
                    [0][-1] + utilities[tuple([ai])][tuple([S[os[t]]])][0] for t, ai in enumerate(A)])
     oa = np.argmax(ua)
     bua = ua[oa]
@@ -193,7 +213,7 @@ def get_equlibrium_solution(A, S, num_query, utilities, strategies):
     return a_eq, s_eq, au_eq, su_eq
 
 
-def get_greedy_solution(A, S, num_query):
+def get_greedy_solution(A, S, num_query, victim_ind):
     a_grd = s_grd = np.array([], dtype=int)
     au_grd = np.zeros((num_query+1))
     su_grd = np.zeros((num_query+1))
@@ -207,7 +227,7 @@ def get_greedy_solution(A, S, num_query):
 
         # Find optimum strategy for all possible ai
         ua = np.array([utility_attacker.utility_attacker(np.append(a_grd, ai), np.append(
-            s_grd, S[os[t]]), i+1, -1)[0][-1] if ai not in a_grd else -np.inf for t, ai in enumerate(A)])
+            s_grd, S[os[t]]), i+1, victim_ind)[0][-1] if ai not in a_grd else -np.inf for t, ai in enumerate(A)])
         oa = np.argmax(ua)
         bua = ua[oa]
 
@@ -224,6 +244,21 @@ def get_greedy_solution(A, S, num_query):
     return a_grd, s_grd, au_grd, su_grd
 
 
+def get_optimal_solution(A, num_query, victim_ind):
+    a_opt = A[np.argsort(maf_values[A])][:num_query]
+    s_opt = np.ones(num_query)
+
+    attacker_utilities = np.zeros(num_query+1)
+    sharer_utilities = np.zeros(num_query+1)
+    for i in range(num_query):
+        attacker_utilities[i+1] = utility_attacker.utility_attacker(
+            a_opt[:i+1], s_opt[:i+1], i+1, victim_ind)[0][-1]
+        sharer_utilities[i+1] = utility_beacon.utility_sharer(
+            a_opt[:i+1], s_opt[:i+1], i+1)[0][-1]
+
+    return a_opt, s_opt, attacker_utilities, sharer_utilities
+
+
 def plot_beacon_utilities(utilities, solution_name):
     beacon_results = {}
 
@@ -238,8 +273,9 @@ def plot_beacon_utilities(utilities, solution_name):
     ax.set_title(f"{solution_name} - Beacon Utilities")
     ax.boxplot(beacon_results.values())
     ax.set_xticklabels(beacon_results.keys())
-    
-    fig.savefig(path.join(FIGURES_SAVE_DIR, f"{solution_name}_sharer_utility.png"))
+
+    fig.savefig(path.join(FIGURES_SAVE_DIR,
+                f"{solution_name}_sharer_utility.png"))
 
 
 def plot_attacker_utilities(utilities, solution_name):
@@ -253,9 +289,46 @@ def plot_attacker_utilities(utilities, solution_name):
     ax.set_title(f"{solution_name} - Attacker Utilities")
     ax.boxplot(beacon_results.values())
     ax.set_xticklabels(beacon_results.keys())
+
+    fig.savefig(path.join(FIGURES_SAVE_DIR,
+                f"{solution_name}_attacker_utility.png"))
+
+
+def box_plot(data, edge_color, fill_color, positions, ax):
+    bp = ax.boxplot(data, patch_artist=True, positions=positions, widths=140)
+
+    for element in ['boxes', 'whiskers', 'fliers', 'means', 'medians', 'caps']:
+        plt.setp(bp[element], color=edge_color)
+
+    for patch in bp['boxes']:
+        patch.set(facecolor=fill_color)
+
+    return bp
+
+
+def plot_all_utilities(equlibrium_utilities, greedy_utilities, optimal_utilities, title):
+    x = np.array([1, 2, 3, 4]) * 1000
+    data1 = np.array(equlibrium_utilities[:, 1:])
+    data2 = np.array(greedy_utilities[:, 1:])
+    data3 = np.array(optimal_utilities[:, 1:])
+
+    fig, ax = plt.subplots()
+    bp1 = box_plot(data1, 'black', 'tomato', x + 175, ax)
+    bp2 = box_plot(data2, 'blue', 'cyan', x, ax)
+    bp3 = box_plot(data3, 'black', 'orange', x - 175, ax)
+
+    ax.set_xlim(500, 4500)
+    ax.set_xticks(x)
+    ax.set_xticklabels([f'Query {i+1}' for i in range(len(x))])
+    ax.set_ylabel(f"{title} Utility")
+
+    ax.legend([bp1["boxes"][0], bp2["boxes"][0], bp3["boxes"][0]],
+              ['Greedy', 'Game Theory', 'Optimal (no defense)'])
+    ax.set_title(f"Distribution of {title} utilies with 20 victims")
     
-    fig.savefig(path.join(FIGURES_SAVE_DIR, f"{solution_name}_attacker_utility.png"))
-    
+    fig.savefig(path.join(FIGURES_SAVE_DIR,
+                f"{title}_utilities.png"))
+
 
 if __name__ == "__main__":
     np.random.seed(2024)
@@ -298,8 +371,10 @@ if __name__ == "__main__":
     all_sharer = list(product(sharer_strategies, repeat=NUM_QUERIES))
 
     # Calculate attackers' strategy
-    attackers_strategies = retrive_optimal_strategies(
-        victims, NUM_QUERIES, maf_values)
+    # attackers_strategies = retrive_optimal_strategies(
+    #     victims, NUM_QUERIES, maf_values)
+    attackers_strategies = retrive_random_strategies(
+        NUM_QUERIES, NUM_QUERIES, len(maf_values))
     all_attacker = retrive_all_attacker(attackers_strategies, NUM_QUERIES)
 
     total_iteration_count = all_attacker.shape[0] * \
@@ -336,14 +411,14 @@ if __name__ == "__main__":
         print("--------------------")
         print(f"User index: {i}")
         equlibrium_attacker_strategies[i], equlibrium_sharer_strategies[i], equlibrium_attacker_utilities[i],  equlibrium_sharer_utilities[i] = get_equlibrium_solution(
-            attackers_strategies[i], sharer_strategies, NUM_QUERIES, utilities[i], strategies[i])
+            attackers_strategies[i], sharer_strategies, NUM_QUERIES, utilities[i], strategies[i], 20 + i)
         print(
             f"Strategies # Attacker: {equlibrium_attacker_strategies[i]}, Beacon: {equlibrium_sharer_strategies[i]}")
         print(
             f"Utilities # Attacker: {equlibrium_attacker_utilities[i]}, Beacon: {equlibrium_sharer_utilities[i]}")
 
     print("*** Equlibrium Solution - End ***\n")
-    
+
     print("Generating plots...")
     plot_beacon_utilities(equlibrium_sharer_utilities, "Equlibrium")
     plot_attacker_utilities(equlibrium_attacker_utilities, "Equlibrium")
@@ -359,15 +434,44 @@ if __name__ == "__main__":
         print("--------------------")
         print(f"User index: {i}")
         greedy_attacker_strategies[i], greedy_sharer_strategies[i], greedy_attacker_utilities[i],  greedy_sharer_utilities[i] = get_greedy_solution(
-            attackers_strategies[i], sharer_strategies, NUM_QUERIES)
+            attackers_strategies[i], sharer_strategies, NUM_QUERIES, 20 + i)
         print(
             f"Strategies # Attacker: {greedy_attacker_strategies[i]}, Beacon: {greedy_sharer_strategies[i]}")
         print(
             f"Utilities # Attacker: {greedy_attacker_utilities[i]}, Beacon: {greedy_sharer_utilities[i]}")
 
     print("*** Greedy Solution - End ***\n")
-    
+
     print("Generating plots...")
     plot_beacon_utilities(greedy_sharer_utilities, "Greedy")
     plot_attacker_utilities(greedy_attacker_utilities, "Greedy")
+    print("Plots are generated.")
+
+    optimal_sharer_strategies = np.zeros((victims.shape[1], NUM_QUERIES))
+    optimal_attacker_strategies = np.zeros(
+        (victims.shape[1], NUM_QUERIES), dtype=np.int64)
+    optimal_sharer_utilities = np.zeros((victims.shape[1], NUM_QUERIES+1))
+    optimal_attacker_utilities = np.zeros((victims.shape[1], NUM_QUERIES+1))
+    print("\n*** Optimal Solution - Start ***")
+    for i in range(victims.shape[1]):
+        print("--------------------")
+        print(f"User index: {i}")
+        optimal_attacker_strategies[i], optimal_sharer_strategies[i], optimal_attacker_utilities[i],  optimal_sharer_utilities[i] = get_optimal_solution(
+            attackers_strategies[i], NUM_QUERIES, 20+i)
+        print(
+            f"Strategies # Attacker: {optimal_attacker_strategies[i]}, Beacon: {optimal_sharer_strategies[i]}")
+        print(
+            f"Utilities # Attacker: {optimal_attacker_utilities[i]}, Beacon: {optimal_sharer_utilities[i]}")
+
+    print("*** Optimal Attack - End ***\n")
+
+    print("Generating plots...")
+    plot_beacon_utilities(optimal_sharer_utilities, "Optimal Attack")
+    plot_attacker_utilities(optimal_attacker_utilities, "Optimal Attack")
+    print("Plots are generated.")
+
+
+    print("Generating overall plots...")
+    plot_all_utilities(equlibrium_attacker_utilities, greedy_attacker_utilities, optimal_attacker_utilities, "Attacker")
+    plot_all_utilities(equlibrium_sharer_utilities, greedy_sharer_utilities, optimal_sharer_utilities, "Beacon")
     print("Plots are generated.")
