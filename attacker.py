@@ -56,6 +56,8 @@ class Attacker():
 
         # print("\tControls min: {} and max {} LRT".format(min_control_lrt, max_control_lrt))
         # print("\tVictim: {} LRT".format(self.victim_lrt))
+        # print("\tVictim: {} Pvalue".format(self._calc_pvalue()))
+
 
         temp_maf = torch.Tensor(self.mafs)
         # temp_maf = torch.cat((temp_maf, min_control_lrt.unsqueeze(0), max_control_lrt.unsqueeze(0), self.victim_lrt.unsqueeze(0)))
@@ -86,9 +88,9 @@ class Attacker():
 
     #################################################################################################
     # Update Beacon
-    def update(self, attacker_action):
+    def update(self, beacon_action, attacker_action):
         self.attacker_action = attacker_action
-        self.victim_info[self.attacker_action, 2] = torch.as_tensor(1) #TRUTH
+        self.victim_info[self.attacker_action, 2] = torch.as_tensor(beacon_action) #TRUTH
         # print(self.victim_info)
 
 
@@ -109,10 +111,10 @@ class Attacker():
         pvalue = self._calc_pvalue()
 
         # preward1 = -pvalue
-        # preward2 = (10 - step) / 10
+        preward2 = beacon_action
         preward1 = -1
 
-        total = preward1 #+ preward2
+        total = preward1 + preward2
 
         if pvalue < 0.05:
             total += 40
@@ -122,7 +124,7 @@ class Attacker():
         # print("Attacker Rewards: \n\t1-pvalue: {}\n\tutility: {}\n\ttotal: {}".format(preward1, preward1, total))
         # print("-----------------------------------------------------------------")
 
-        return total, done, [preward1, self.victim_lrt]
+        return total, done, [preward1, preward2]
     
 
     #################################################################################################

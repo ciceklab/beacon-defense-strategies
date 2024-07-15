@@ -82,18 +82,19 @@ class Beacon():
 
     #################################################################################################
     # Reward Calculation
-    def calc_reward(self)->float:
+    def calc_reward(self, beacon_action)->float:
         done = False
         self.pvalues = self._calc_pvalues()
         # preward = torch.min(self.pvalues)
         preward = self.pvalues[self.victim_id]
-        ureward = torch.Tensor([0]) if self.sum_probs == 0 else 1-(self.lie_probs / self.sum_probs)
+        # ureward = torch.Tensor([0]) if self.sum_probs == 0 else 1-(self.lie_probs / self.sum_probs)
+        ureward = beacon_action
         total = ureward + preward
     
         if preward < 0.05:
-            total -= 10
+            total -= 15
             done=True
-        #     print("⛔⛔⛔ Attacker Identified the VICTIM ⛔⛔⛔")
+            print("⛔⛔⛔ Attacker Identified the VICTIM ⛔⛔⛔")
 
         # print("Beacon Rewards: \n\tprivacy: {}\n\tutility: {}\n\ttotal: {}".format(preward, ureward, total))
         # print("-----------------------------------------------------------------")

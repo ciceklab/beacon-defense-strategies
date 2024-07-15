@@ -216,3 +216,43 @@ def plot_lists(values, path, name, episode, thresh=None, xlabel='Episodes', ylab
     # size = canvas.get_width_height()
 
     # return pygame.image.fromstring(raw_data, size, "RGB")
+
+
+def plot_two_lists(list1, list2, path, name, episode, thresh=None, label1 = 'Beacon Action', label2='Attacker Action', xlabel='Episodes', ylabel='Values'):
+    fig, ax = plt.figure(), plt.gca()
+    ax.plot(np.arange(len(list1)), list1, label=label1, linewidth=2)
+    ax.plot(np.arange(len(list2)), list2, label=label2, linewidth=2)
+
+    if thresh is not None:
+        ax.axhline(y=thresh, color='r', linestyle='--', label='Threshold', linewidth=1.5)
+
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    ax.legend()
+    ax.grid(True)
+
+    plt.tight_layout()
+    plt.savefig(f"{path}/{name}_{episode}.png")
+    # plt.show()
+    plt.close(fig)
+
+
+def plot_three_lists(list1, list2, list3, path, name, episode, thresh=None, label1 = 'Beacon Action', label2='Attacker Action', label3='Total', xlabel='Episodes', ylabel='Values'):
+    fig, ax = plt.figure(), plt.gca()
+    ax.plot(np.arange(len(list1)), list1, label=label1, linewidth=2)
+    ax.plot(np.arange(len(list2)), list2, label=label2, linewidth=2)
+    ax.plot(np.arange(len(list3)), list3, label=label3, linewidth=2)
+
+
+    if thresh is not None:
+        ax.axhline(y=thresh, color='r', linestyle='--', label='Threshold', linewidth=1.5)
+
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    ax.legend()
+    ax.grid(True)
+
+    plt.tight_layout()
+    plt.savefig(f"{path}/{name}_{episode}.png")
+    # plt.show()
+    plt.close(fig)

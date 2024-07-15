@@ -5,7 +5,7 @@ import csv
 import math
 import random
 
-from utils import plot_lists, lrt, create_csv, log_env, log_victim
+from utils import plot_lists, lrt, create_csv, log_env, log_victim, plot_two_lists, plot_three_lists
 from beacon import Beacon
 from attacker import Attacker
 
@@ -47,12 +47,17 @@ class Env():
 
         self.beacon_prewards = []
         self.beacon_urewards = []
+        self.beacon_total = []
+
 
         self.attacker_prewards = []
         self.attacker_urewards = []
+        self.attacker_total = []
 
-        self.attacker_mafs = []
         self.attacker_actions = []
+
+        self.attacker_agent_actions = []
+        self.beacon_agent_actions = []
 
 
    #################################################################################################
@@ -61,9 +66,17 @@ class Env():
     # Reset the environment after an episode
     def reset(self) -> torch.Tensor:
         self.episode += 1
-        self.attacker_mafs = []
+
+        self.beacon_prewards = []
+        self.beacon_urewards = []
+        self.beacon_total = []
         self.attacker_urewards = []
+        self.attacker_prewards = []
+        self.attacker_total = []
         self.attacker_actions = []
+
+        self.attacker_agent_actions = []
+        self.beacon_agent_actions = []
 
         print("==================================⬇️⬇️⬇️⬇️Episode: {}⬇️⬇️⬇️⬇️==============================".format(self.episode+1))
 
@@ -94,24 +107,27 @@ class Env():
             attacker_state = torch.flatten(attacker_state).float()
             # print("Attacker State: ", attacker_state)
             agent_action = attacker_agent.select_action(attacker_state) 
-            print("Attacker Action: ", agent_action)
-
             attacker_action = self.attacker.act(self.current_step, agent_action) 
-
+            # print("Attacker Action: {}, {}".format(attacker_action, agent_action))
         else:
             attacker_state = self.attacker.get_state()
             attacker_action = self.attacker.act(self.current_step) 
         
         if self.args.beacon_type == "agent":
             beacon_state = self.beacon.get_state(attacker_action) 
-            beacon_action = beacon_agent.select_action(beacon_state) 
+            beacon_action = beacon_agent.select_action(beacon_state, False) 
+            beacon_action = torch.Tensor(beacon_action)
+
         else:
             beacon_state = self.beacon.get_state(attacker_action) 
             beacon_action = self.beacon.act() 
 
+        self.attacker_agent_actions.append(agent_action)
+        self.beacon_agent_actions.append(beacon_action)
+
         ################# Save the Actions
-        beacon_action = torch.clamp(torch.as_tensor(beacon_action), min=0, max=1)
-        self.attacker_mafs.append(self.maf[attacker_action])
+        # beacon_action = torch.clamp(torch.as_tensor(beacon_action), min=0, max=1)
+
         # print("--------------------------------Actions---------------------------------")
         # print("Attacker Action: Position {} with MAF: {} and SNP: {} and LRT: {}".format(attacker_action, self.maf[attacker_action], self.victim[attacker_action], lrt(number_of_people=self.args.beacon_size, genome=self.victim[attacker_action], maf=self.maf[attacker_action], response=beacon_action)))
         # print("Beacon Action: {}".format(beacon_action))
@@ -121,37 +137,35 @@ class Env():
 
         ########## Update the states
         self.beacon.update(beacon_action=beacon_action, attacker_action=attacker_action)
-        self.attacker.update(attacker_action=attacker_action)
+        self.attacker.update(beacon_action=beacon_action, attacker_action=attacker_action)
 
         # print("--------------------------------Rewards---------------------------------")
 
         ########### Calculate Rewards
-        beacon_reward, beacon_done, beacon_rewards = self.beacon.calc_reward()
+        beacon_reward, beacon_done, beacon_rewards = self.beacon.calc_reward(beacon_action=beacon_action)
         attacker_reward, attacker_done, attacker_rewards = self.attacker.calc_reward(beacon_action, self.current_step)
+
+        # print("Beacon utility reward: {}  privacy reward: {}".format(beacon_rewards[1], beacon_rewards[0]))
 
         if attacker_action in self.attacker_actions:
             attacker_reward -= 5
         
+
         self.beacon_prewards.append(beacon_rewards[0])
         self.beacon_urewards.append(beacon_rewards[1])
-
+        self.beacon_total.append(beacon_reward)
         self.attacker_prewards.append(attacker_rewards[0])
-        self.attacker_urewards.append(attacker_rewards[0])
+        self.attacker_urewards.append(attacker_rewards[1])
+        self.attacker_total.append(attacker_reward)
         self.attacker_actions.append(attacker_action)
 
         self.current_step += 1
         if self.current_step >= self.max_steps:
             done = True
-            # print("✅✅✅ Attacker Could NOT Indentify the VICTIM ✅✅✅")
+            print("✅✅✅ Attacker Could NOT Indentify the VICTIM ✅✅✅")
 
             
         done = beacon_done or done or attacker_done
-        # PLOT
-        # if self.episode % self.args.plot_freq == 0 and done:
-        #     # print(pvalues, self.beacon_actions)
-        #     plot_lists(self.beacon._calc_pvalues[0], self.args.results_dir, "pvalues", self.episode, 0.05, xlabel="Individuals inside the Beacon database", ylabel="P-values")
-        #     plot_lists(self.beacon_actions, self.args.results_dir, "actions", self.episode, 0.5, xlabel="Query", ylabel="Beacon's Action")
-        #     # plot_lists(self.beacon_actions, self.args.results_dir, "actions", self.episode, 0.5, xlabel="Query", ylabel="Attacker's Action")
 
         log_env(info=self.beacon.beacon_info, episode=self.episode, step=self.current_step, log_env_name=self.log_beacon)
         log_env(info=self.beacon.control_info, episode=self.episode, step=self.current_step, log_env_name=self.log_beacon_control)
@@ -164,10 +178,16 @@ class Env():
             self.beacon.get_state(self.attacker_action)
             self.attacker.get_state()
 
+        if done and (self.episode % 100 == 0):
+            plot_two_lists(self.beacon_agent_actions, self.attacker_agent_actions, path=self.args.results_dir + "/actions", name="action", episode=self.episode, xlabel="Episode 10th", ylabel='Actions')
+            plot_three_lists(self.beacon_prewards, self.beacon_urewards, self.beacon_total, path=self.args.results_dir + "/rewards", name="beacon", label1="Beacon Privacy Reward", label2="Beacon Utility Reward", label3="Total", episode=self.episode, xlabel="Episode 10th", ylabel='Beacon Rewards')
+            plot_three_lists(self.attacker_prewards, self.attacker_urewards, self.attacker_total, path=self.args.results_dir + "/rewards", label1="Attacker -1 Reward", label2="Attacker beacon action Reward", label3="Total", name="attacker", episode=self.episode, xlabel="Episode 10th", ylabel='Attacker Rewards')
+
+
+
         # if self.episode % self.args.plot_freq == 0:
         #     plot_lists(values=self.beacon_prewards, path=self.args.results_dir + "/indrewards", name="b_preward", episode=self.episode, thresh=0.05)
         #     plot_lists(values=self.beacon_urewards, path=self.args.results_dir + "/indrewards", name="b_ureward", episode=self.episode, thresh=0.05)
-        #     plot_lists(values=self.attacker_mafs, path=self.args.results_dir + "/indrewards", name="mafs", episode=self.episode)
         #     plot_lists(values=self.attacker_prewards, path=self.args.results_dir + "/indrewards", name="a_preward", episode=self.episode)
         #     plot_lists(values=self.attacker_urewards, path=self.args.results_dir + "/indrewards", name="ae_preward", episode=self.episode)
 
@@ -176,7 +196,7 @@ class Env():
             # plot_lists()
 
 
-        return [], [beacon_reward, attacker_reward], done, []
+        return [np.array(beacon_state), beacon_action, beacon_reward, np.array(self.beacon.get_state(self.attacker_action)), done], [beacon_reward, attacker_reward], done, []
     
     #################################################################################################
     #Populations
@@ -197,8 +217,8 @@ class Env():
         beacon_control = all_people[beacon_size:beacon_size + self.args.b_control_size]
         attack_control = all_people[beacon_size + self.args.b_control_size:beacon_size + self.args.b_control_size + self.args.a_control_size]
 
-        # victim_ind = np.random.randint(1, beacon_size)
-        victim_ind = self.episode +1 
+        victim_ind = np.random.randint(1, beacon_size)
+        # victim_ind = self.episode +1 
     
         victim = beacon_case[victim_ind]
 
