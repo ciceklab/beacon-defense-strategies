@@ -201,12 +201,13 @@ def train_both(args:object, env:object, beacon_agent:object, attacker_agent=None
             current_ep_areward += rewards[1]
 
             # saving reward and is_terminals 
-            # 
-            # PPO
-            # 
-            # beacon_agent.buffer.rewards.append(beacon_reward)
-            # beacon_agent.buffer.is_terminals.append(done)
-            beacon_agent.buffer.store(binfo[0], binfo[1], binfo[2], binfo[3], binfo[4],)
+            if args.beacon_agent == "ppo":
+                beacon_agent.buffer.rewards.append(beacon_reward)
+                beacon_agent.buffer.is_terminals.append(done)
+            elif args.beacon_agent == "td":
+                beacon_agent.buffer.store(binfo[0], binfo[1], binfo[2], binfo[3], binfo[4],)
+            else:
+                raise NotImplemented    
 
             attacker_agent.buffer.rewards.append(attacker_reward)
             attacker_agent.buffer.is_terminals.append(done)
@@ -216,13 +217,13 @@ def train_both(args:object, env:object, beacon_agent:object, attacker_agent=None
             if done:
                 break
 
+        if args.beacon_agent == "ppo":
+            action_std_decay_rate = 0.05    # linearly decay action_std (action_std = action_std - action_std_decay_rate)
+            min_action_std = 0.05  
 
-        # action_std_decay_rate = 0.05    # linearly decay action_std (action_std = action_std - action_std_decay_rate)
-        # min_action_std = 0.05  
-
-        # # if continuous action space; then decay action std of ouput action distribution
-        # if i_episode % 50==0 and i_episode>0 == 0:
-        #     beacon_agent.decay_action_std(action_std_decay_rate, min_action_std)
+            # if continuous action space; then decay action std of ouput action distribution
+            if i_episode % 50==0 and i_episode>0 == 0:
+                beacon_agent.decay_action_std(action_std_decay_rate, min_action_std)
 
         print("Victim: {} \t Timestep : {} \t Beacon Reward : {}\t Attacker Reward : {}".format(env.victim_id, time_step, current_ep_reward, current_ep_areward))
 

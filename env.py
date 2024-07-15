@@ -109,20 +109,35 @@ class Env():
             agent_action = attacker_agent.select_action(attacker_state) 
             attacker_action = self.attacker.act(self.current_step, agent_action) 
             # print("Attacker Action: {}, {}".format(attacker_action, agent_action))
+            self.attacker_agent_actions.append(agent_action)
         else:
             attacker_state = self.attacker.get_state()
             attacker_action = self.attacker.act(self.current_step) 
+            self.attacker_agent_actions.append(attacker_action)
         
         if self.args.beacon_type == "agent":
+
             beacon_state = self.beacon.get_state(attacker_action) 
-            beacon_action = beacon_agent.select_action(beacon_state, False) 
-            beacon_action = torch.Tensor(beacon_action)
+            if self.args.beacon_agent == "td":
+                if self.args.evaluate:
+                    beacon_action = beacon_agent.select_action(beacon_state, True) 
+                else :
+                    beacon_action = beacon_agent.select_action(beacon_state, False) 
+                    beacon_action = torch.Tensor(beacon_action)
+        
+            elif self.args.beacon_agent == "ppo":
+                    beacon_action = beacon_agent.select_action(beacon_state)
+                    beacon_action = torch.Tensor(beacon_action)
+            else:
+                raise NotImplemented
+        
 
         else:
             beacon_state = self.beacon.get_state(attacker_action) 
             beacon_action = self.beacon.act() 
+            
 
-        self.attacker_agent_actions.append(agent_action)
+        # self.attacker_agent_actions.append(agent_action)
         self.beacon_agent_actions.append(beacon_action)
 
         ################# Save the Actions
@@ -179,9 +194,9 @@ class Env():
             self.attacker.get_state()
 
         if done and (self.episode % 100 == 0):
-            plot_two_lists(self.beacon_agent_actions, self.attacker_agent_actions, path=self.args.results_dir + "/actions", name="action", episode=self.episode, xlabel="Episode 10th", ylabel='Actions')
-            plot_three_lists(self.beacon_prewards, self.beacon_urewards, self.beacon_total, path=self.args.results_dir + "/rewards", name="beacon", label1="Beacon Privacy Reward", label2="Beacon Utility Reward", label3="Total", episode=self.episode, xlabel="Episode 10th", ylabel='Beacon Rewards')
-            plot_three_lists(self.attacker_prewards, self.attacker_urewards, self.attacker_total, path=self.args.results_dir + "/rewards", label1="Attacker -1 Reward", label2="Attacker beacon action Reward", label3="Total", name="attacker", episode=self.episode, xlabel="Episode 10th", ylabel='Attacker Rewards')
+            plot_two_lists(self.beacon_agent_actions, self.attacker_agent_actions, path=self.args.results_dir + "/actions", name="action", episode=self.episode, xlabel="Query Number", ylabel='Actions')
+            plot_three_lists(self.beacon_prewards, self.beacon_urewards, self.beacon_total, path=self.args.results_dir + "/rewards", name="beacon", label1="Beacon Privacy Reward", label2="Beacon Utility Reward", label3="Total", episode=self.episode, xlabel="Query Number", ylabel='Beacon Rewards')
+            plot_three_lists(self.attacker_prewards, self.attacker_urewards, self.attacker_total, path=self.args.results_dir + "/rewards", label1="Attacker -1 Reward", label2="Attacker beacon action Reward", label3="Total", name="attacker", episode=self.episode, xlabel="Query Number", ylabel='Attacker Rewards')
 
 
 
@@ -217,8 +232,11 @@ class Env():
         beacon_control = all_people[beacon_size:beacon_size + self.args.b_control_size]
         attack_control = all_people[beacon_size + self.args.b_control_size:beacon_size + self.args.b_control_size + self.args.a_control_size]
 
-        victim_ind = np.random.randint(1, beacon_size)
-        # victim_ind = self.episode +1 
+        if self.args.evaluate:
+            victim_ind = self.episode +1 
+        else:
+            victim_ind = np.random.randint(1, beacon_size)
+            
     
         victim = beacon_case[victim_ind]
 

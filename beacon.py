@@ -70,7 +70,7 @@ class Beacon():
     # Update Beacon
     def update(self, beacon_action, attacker_action):
         # Update the beacon case group and calculate the LRT values
-        self.beacon_info[:, attacker_action, 2] = beacon_action
+        self.beacon_info[:, attacker_action, 2] = torch.as_tensor(beacon_action)
         self.beacon_lrts = self._calc_group_lrts(self.beacon_info, True)
 
         # Update the beacon control group and calculate the LRT values

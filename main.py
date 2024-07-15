@@ -7,6 +7,7 @@ import random
 
 import torch
 
+
 def reproducibility(seed: int):
     os.environ['PYTHONHASHSEED'] = str(seed)
     torch.manual_seed(seed)
@@ -32,50 +33,41 @@ else:
     print("Device set to : cpu")
 
 
+
 def args_create():
     # @title Arguments
     parser = argparse.ArgumentParser(description='Actor Critic')
 
+
+    # Environment Setup
     parser.add_argument('--data', default="/mnt/kerem/CEU", type=str, help='Dataset Path')
-    parser.add_argument('--epochs', default=64, type=int, metavar='N', help='Number of epochs for training agent.')
-    parser.add_argument('--episodes', default=10000, type=int, metavar='N', help='Number of episodes for training agent.')
-    parser.add_argument('--lr', '--learning-rate', default=0.005, type=float, metavar='LR', help='initial learning rate', dest='lr')
-    parser.add_argument('--wd', default=0.0001, type=float, help='Weight decay for training optimizer')
+    parser.add_argument('--episodes', default=7000, type=int, metavar='N', help='Number of episodes for training agent.')
     parser.add_argument('--seed', default=3, type=int, help='Seed for reproducibility')
-    parser.add_argument('--model-name', default="PPO", type=str, help='Model name for saving model.')
-    parser.add_argument('--gamma', default=0.99, type=float, metavar='N', help='The discount factor as mentioned in the previous section')
-
-    # Model
-    parser.add_argument("--latent1", default=256, required=False, help="Latent Space Size for first layer of network.")
-    parser.add_argument("--latent2", default=256, required=False, help="Latent Space Size for second layer of network.")
-
-    # Env Properties
     parser.add_argument('--a_control_size', default=50, type=int, help='Attack Control group size')
     parser.add_argument('--b_control_size', default=50, type=int, help='Beacon Control group size')
     parser.add_argument('--gene_size', default=100, type=int, help='States gene size')
     parser.add_argument('--beacon_size', default=10, type=int, help='Beacon population size')
     parser.add_argument('--victim_prob', default=1, type=float, help='Victim inside beacon or not!')
     parser.add_argument('--max_queries', default=5, type=int, help='Maximum queries per episode')
+    parser.add_argument('--evaluate', default=False, type=bool, help='Evaluation or Not')
 
 
-    parser.add_argument('--attacker_type', default="agent", choices=["random", "optimal", "agent"], type=str, help='Type of the attacker')
-    parser.add_argument('--beacon_type', default="truth", choices=["random", "agent", "truth"], type=str, help='Type of the beacon')
+    # Training Setup
+    parser.add_argument('--train', default="both", choices=["attacker", "beacon", "both"], type=str, help='Train side!')
+    
+    parser.add_argument('--attacker_type', default="optimal", choices=["random", "optimal", "agent"], type=str, help='Type of the attacker')
+    parser.add_argument('--beacon_type', default="agent", choices=["random", "agent", "truth"], type=str, help='Type of the beacon')
 
+    parser.add_argument('--beacon_agent', default="td", choices=["td", "ppo"], type=str, help='Type of the beacon')
 
     parser.add_argument('--pop_reset_freq', default=100000000, type=int, help='Reset Population Frequency (Epochs)')
-    parser.add_argument('--update_freq', default=20, type=int, help='Train Agent model frequency')
+    parser.add_argument('--update_freq', default=10, type=int, help='Train Agent model frequency')
     parser.add_argument('--plot-freq', default=10, type=int, metavar='N', help='Plot Frequencies')
-    parser.add_argument('--val-freq', default=20, type=int, metavar='N', help='Validation frequencies')
-    parser.add_argument('--control-lrts', default=None, type=str, help='Control groups LRTS path')
+
+    parser.add_argument('--resume-attacker', default=None, type=str, metavar='PATH', help='path to latest checkpoint (default: none)')
+    parser.add_argument('--resume-beacon', default=None, type=str, metavar='PATH', help='path to latest checkpoint (default: none)')
 
 
-
-    parser.add_argument("--state_dim", default=(4,), required=False, help="State Dimension")
-    parser.add_argument("--n-actions", default=1, required=False, help="Actions Count for each state")
-
-
-    # utils
-    parser.add_argument('--resume', default="", type=str, metavar='PATH', help='path to latest checkpoint (default: none)')
     parser.add_argument('--results-dir', default='./results/train', type=str, metavar='PATH', help='path to cache (default: none)')
 
     # args = parser.parse_args()  # running in command line
@@ -103,6 +95,7 @@ reference = pickle.load(open(os.path.join("/mnt/kerem/CEU", "reference.pickle"),
 # Binary representation of the beacon; 0: no SNP (i.e. no mutation) 1: SNP (i.e. mutation)
 binary = np.logical_and(beacon.values != reference, beacon.values != "NN").astype(int)
 
+
 # Table that contains MAF (minor allele frequency) values for each position. 
 maf = pd.read_csv(os.path.join("/mnt/kerem/CEU", "MAF.txt"), index_col=0, delim_whitespace=True)
 maf.rename(columns = {'referenceAllele':'major', 'referenceAlleleFrequency':'major_freq', 
@@ -116,38 +109,47 @@ maf_values = maf["maf"].values
 binary = binary.T
 binary.shape #(164, 4029840)
 
-has_continuous_action_space = True                
-
-action_std = 0.4             # starting std for action distribution (Multivariate Normal)
-action_std_decay_rate = 0.0025       # linearly decay action_std (action_std = action_std - action_std_decay_rate)
-min_action_std = 0.05                # minimum action_std (stop decay after action_std <= min_action_std)
-action_std_decay_freq = int(2.5e5)
-
-################ PPO hyperparameters ################
-K_epochs = 200          # update policy for K epochs
-eps_clip = 0.1              # clip parameter for PPO
-gamma = 0.99                # discount factor
-
-lr_actor = 0.0001       # learning rate for actor network
-lr_critic = 0.0001       # learning rate for critic network
-
-
 import sys
 from env import Env
 from ppo import PPO
-from engine import train_beacon, train_attacker
+from ddpg import DDPG
+from td import TD3
+from engine import train_beacon, train_attacker, train_both, train_TD_beacon
 
 args = args_create()
+
 def main():
     env = Env(args, beacon, maf_values, binary)
     
-    if args.beacon_type == "agent":
-        state_dim = 9
-        action_dim = 1
-        # initialize a PPO agent
-        beacon_agent = PPO(state_dim, action_dim, lr_actor, lr_critic, gamma, K_epochs, eps_clip, has_continuous_action_space, action_std)
-        train_beacon(args, env, beacon_agent)
-    else:
+    if args.train == "beacon":
+        ################ PPO hyperparameters ################
+        if args.resume_attacker:
+            attacker_agent = PPO(400, 10, lr_actor, lr_critic, gamma, K_epochs, eps_clip, False, None)
+            attacker_agent.load(args.resume_attacker)
+
+
+        if args.beacon_agent == "td":
+            state_dim = 9
+            action_dim = 1  
+            beacon_agent = TD3(state_dim, action_dim, max_action=1)
+            train_TD_beacon(args, env, beacon_agent)
+
+        elif args.beacon_agent == "ppo":
+            K_epochs = 300         # update policy for K epochs
+            eps_clip = 0.2           # clip parameter for PPO
+            gamma = 0.99                # discount factor
+
+            lr_actor = 0.001       # learning rate for actor network
+            lr_critic = 0.001        # learning rate for critic network
+
+            beacon_agent = PPO(state_dim, action_dim, lr_actor, lr_critic, gamma, K_epochs, eps_clip, False, None)
+            train_beacon(args, env, beacon_agent)
+
+        else:
+            raise NotImplemented
+            
+            
+    elif args.train == "attacker":
         attacker_state_dim = 400
         attacker_action_dim = 10
 
@@ -162,7 +164,36 @@ def main():
         attacker_agent = PPO(attacker_state_dim, attacker_action_dim, lr_actor, lr_critic, gamma, K_epochs, eps_clip, False, None)
         train_attacker(args, env, attacker_agent)
 
-        # attacker_agent.buffer.print_buffer()
+    else:
+        ################ PPO hyperparameters ################
+        K_epochs = 300         # update policy for K epochs
+        eps_clip = 0.2           # clip parameter for PPO
+        gamma = 0.99                # discount factor
+
+        lr_actor = 0.0001       # learning rate for actor network
+        lr_critic = 0.0001        # learning rate for critic network
+
+        action_std = 0.4
+
+        state_dim = 9
+        action_dim = 1
+
+        attacker_state_dim = 400
+        attacker_action_dim = 10
+
+        # initialize a PPO agent
+        # beacon_agent = DDPG(state_dim, action_dim, )
+        beacon_agent = TD3(state_dim, action_dim, max_action=1)
+        # beacon_agent = PPO(state_dim, action_dim, lr_actor, lr_critic, gamma, K_epochs, eps_clip, False, None)
+        attacker_agent = PPO(attacker_state_dim, attacker_action_dim, lr_actor, lr_critic, gamma, K_epochs, eps_clip, False, None)
+
+        if args.resume_attacker:
+            attacker_agent.load(args.resume_attacker)
+
+        if args.resume_beacon:
+            beacon_agent.load(args.resume_beacon)
+            
+        train_both(args, env, beacon_agent, attacker_agent)
 
 
 if __name__ == '__main__':

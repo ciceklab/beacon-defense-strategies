@@ -177,6 +177,6 @@ class TD3():
 		torch.save(self.actor.state_dict(), "{}/actor.pth".format(path))
 		torch.save(self.q_critic.state_dict(), "{}/q_critic.pth".format(path))
 
-	def load(self,EnvName, timestep):
-		self.actor.load_state_dict(torch.load("./model/{}_actor{}.pth".format(EnvName, timestep), map_location=device))
-		self.q_critic.load_state_dict(torch.load("./model/{}_q_critic{}.pth".format(EnvName, timestep), map_location=device))
+	def load(self, path):
+		self.actor.load_state_dict(torch.load("{}/actor.pth".format(path)))
+		self.q_critic.load_state_dict(torch.load("{}/q_critic.pth".format(path)))
