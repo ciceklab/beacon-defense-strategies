@@ -143,9 +143,9 @@ class Env():
         ################# Save the Actions
         # beacon_action = torch.clamp(torch.as_tensor(beacon_action), min=0, max=1)
 
-        # print("--------------------------------Actions---------------------------------")
-        # print("Attacker Action: Position {} with MAF: {} and SNP: {} and LRT: {}".format(attacker_action, self.maf[attacker_action], self.victim[attacker_action], lrt(number_of_people=self.args.beacon_size, genome=self.victim[attacker_action], maf=self.maf[attacker_action], response=beacon_action)))
-        # print("Beacon Action: {}".format(beacon_action))
+        print("--------------------------------Actions---------------------------------")
+        print("Attacker Action: Position {} with MAF: {} and SNP: {} and LRT: {}".format(attacker_action, self.maf[attacker_action], self.victim[attacker_action], lrt(number_of_people=self.args.beacon_size, genome=self.victim[attacker_action], maf=self.maf[attacker_action], response=beacon_action)))
+        print("Beacon Action: {}".format(beacon_action))
         # print("-----------------------------------------------------------------")
 
         # print("--------------------------------Updating---------------------------------")

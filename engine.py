@@ -279,7 +279,7 @@ def train_TD_beacon(args:object, env:object, ppo_agent:object, attacker_agent=No
     if not os.path.exists(directory):
         os.makedirs(directory)
 
-    checkpoint_path = directory + "/PPO_{}.pth".format(run_num)
+    checkpoint_path = directory
     print("save checkpoint path : " + checkpoint_path)
 
     time_step = 0
@@ -311,7 +311,7 @@ def train_TD_beacon(args:object, env:object, ppo_agent:object, attacker_agent=No
         print("Victim: {} \t Timestep : {} \t Beacon Reward : {}\t Attacker Reward : {}".format(env.victim_id, time_step, current_ep_reward, current_ep_areward))
 
         # update PPO agent
-        if i_episode % args.update_freq == 0 and i_episode>0:
+        if i_episode % args.update_freq == 0 and i_episode>100:
             print("--------------------------------------------------------------------------------------------")
             print("updating the agent")
             ppo_agent.update()
@@ -319,7 +319,7 @@ def train_TD_beacon(args:object, env:object, ppo_agent:object, attacker_agent=No
 
             # save model weights
             print("saving model at : " + checkpoint_path)
-            # ppo_agent.save(checkpoint_path)
+            ppo_agent.save(checkpoint_path)
             print("model saved")
             print("Elapsed Time  : ", datetime.now().replace(microsecond=0) - start_time)
             print("--------------------------------------------------------------------------------------------")

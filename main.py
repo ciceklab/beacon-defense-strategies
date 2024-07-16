@@ -53,7 +53,7 @@ def args_create():
 
 
     # Training Setup
-    parser.add_argument('--train', default="both", choices=["attacker", "beacon", "both"], type=str, help='Train side!')
+    parser.add_argument('--train', default="beacon", choices=["attacker", "beacon", "both"], type=str, help='Train side!')
     
     parser.add_argument('--attacker_type', default="optimal", choices=["random", "optimal", "agent"], type=str, help='Type of the attacker')
     parser.add_argument('--beacon_type', default="agent", choices=["random", "agent", "truth"], type=str, help='Type of the beacon')
