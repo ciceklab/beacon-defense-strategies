@@ -133,8 +133,9 @@ class Env():
         
 
         else:
-            beacon_state = self.beacon.get_state(attacker_action) 
-            beacon_action = self.beacon.act() 
+            beacon_state = self.beacon.get_state(attacker_action)
+            max_pvalue_change_threshold = 0.3
+            beacon_action = self.beacon.act(attacker_action, max_pvalue_change_threshold)
             
 
         # self.attacker_agent_actions.append(agent_action)

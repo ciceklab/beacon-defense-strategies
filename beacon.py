@@ -103,11 +103,48 @@ class Beacon():
 
     #################################################################################################
     # Beacon Action
-    def act(self):
+    def act(self, attacker_action, max_pvalue_change_threshold):
         if self.args.beacon_type == "random":
             return random.random()
         if self.args.beacon_type == "truth":
             return 1
+        if self.args.beacon_type == "beacon_strategy":
+            return self.beacon_strategy_pvalue_change(self.beacon_case, attacker_action, max_pvalue_change_threshold)
+
+    # Beacon Strategy: Flips the answer if any of the plvalues is smaller than the threshold
+    def beacon_strategy_pvalue(self, beacon_case, snp_position, threshold = 0.05):
+
+        beacon_action = int(torch.any(beacon_case[:, snp_position] == 1).item())
+        self.update(beacon_action, snp_position)
+        pvalues = self._calc_pvalues()
+
+        if beacon_action == 1:
+            if torch.min(pvalues) < threshold:
+                beacon_action = 0
+                self.update(beacon_action, snp_position)
+
+        return beacon_action
+
+
+
+    #Beacon Strategy: Flips the answer if any of the plvalue changes are larger than the threshold
+    def beacon_strategy_pvalue_change(self, beacon_case, snp_position, max_pvalue_change_threshold = 0.3):
+
+        beacon_action = int(torch.any(beacon_case[:, snp_position] == 1).item())
+        print(beacon_action)
+        if beacon_action == 1:
+            initial_pvalues = self._calc_pvalues()
+            self.update(beacon_action, snp_position)
+            new_pvalues= self._calc_pvalues()
+
+            max_pvalue_change = torch.max(torch.abs(new_pvalues - initial_pvalues)).item()
+
+            if max_pvalue_change > max_pvalue_change_threshold:
+                beacon_action = 0
+                self.update(beacon_action, snp_position)
+
+
+        return beacon_action
 
     #################################################################################################
     #LRT PVALUES
