@@ -68,7 +68,7 @@ class Beacon():
 
     #################################################################################################
     # Update Beacon
-    def update(self, beacon_action, attacker_action):
+    def update(self, beacon_action, attacker_action, calculation_mode: bool = False):
         # Update the beacon case group and calculate the LRT values
         self.beacon_info[:, attacker_action, 2] = torch.as_tensor(beacon_action)
         self.beacon_lrts = self._calc_group_lrts(self.beacon_info, True)
@@ -77,6 +77,8 @@ class Beacon():
         self.control_info[:, attacker_action, 2] = torch.as_tensor(1)
         self.control_lrts = self._calc_group_lrts(self.control_info, True)
 
+        if calculation_mode:
+            return
         self.sum_probs += beacon_action
         self.lie_probs += beacon_action if beacon_action < 0.5 else 0
 
@@ -115,34 +117,27 @@ class Beacon():
     def beacon_strategy_pvalue(self, beacon_case, snp_position, threshold = 0.05):
 
         beacon_action = int(torch.any(beacon_case[:, snp_position] == 1).item())
-        self.update(beacon_action, snp_position)
+        self.update(beacon_action, snp_position, calculation_mode=True)
         pvalues = self._calc_pvalues()
 
         if beacon_action == 1:
             if torch.min(pvalues) < threshold:
                 beacon_action = 0
-                self.update(beacon_action, snp_position)
-
         return beacon_action
-
 
 
     #Beacon Strategy: Flips the answer if any of the plvalue changes are larger than the threshold
     def beacon_strategy_pvalue_change(self, beacon_case, snp_position, max_pvalue_change_threshold = 0.3):
-
         beacon_action = int(torch.any(beacon_case[:, snp_position] == 1).item())
-        print(beacon_action)
+
         if beacon_action == 1:
             initial_pvalues = self._calc_pvalues()
-            self.update(beacon_action, snp_position)
+            self.update(beacon_action, snp_position, calculation_mode=True)
             new_pvalues= self._calc_pvalues()
-
             max_pvalue_change = torch.max(torch.abs(new_pvalues - initial_pvalues)).item()
 
             if max_pvalue_change > max_pvalue_change_threshold:
                 beacon_action = 0
-                self.update(beacon_action, snp_position)
-
 
         return beacon_action
 
