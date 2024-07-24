@@ -211,6 +211,8 @@ class Env():
             # plot_lists()
             # plot_lists()
 
+        print("aaaa", beacon_reward)
+
 
         return [np.array(beacon_state), beacon_action, beacon_reward, np.array(self.beacon.get_state(self.attacker_action)), done], [beacon_reward, attacker_reward], done, []
     

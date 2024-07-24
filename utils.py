@@ -3,6 +3,7 @@ import numpy as np
 # import pygame
 from matplotlib_inline.backend_inline import FigureCanvas
 import csv
+import seaborn as sns
 
 import torch
 
@@ -115,15 +116,15 @@ def log_victim(info, episode, step, log_env_name):
 
 #########################################PLOT
 
-# params = {'legend.fontsize': 48,
-#         'figure.figsize': (54, 32),
-#         'axes.labelsize': 60,
-#         'axes.titlesize':60,
-#         'xtick.labelsize':60,
-#         'ytick.labelsize':60,
-#         'lines.linewidth': 10}
+params = {'legend.fontsize': 48,
+        'figure.figsize': (54, 32),
+        'axes.labelsize': 60,
+        'axes.titlesize':60,
+        'xtick.labelsize':60,
+        'ytick.labelsize':60,
+        'lines.linewidth': 10}
 
-# plt.rcParams.update(params)
+plt.rcParams.update(params)
 
 def plot_rewards(losses1, losses2, losses3, i_episode=0, path=None, sim=False):
     epochs = range(1, len(losses1) + 1) 
@@ -256,3 +257,48 @@ def plot_three_lists(list1, list2, list3, path, name, episode, thresh=None, labe
     plt.savefig(f"{path}/{name}_{episode}.png")
     # plt.show()
     plt.close(fig)
+
+
+def plot_comparisons(rewards_list, labels_list):
+    # Define a consistent color palette
+    colors = sns.color_palette("muted", n_colors=len(rewards_list))
+
+    # Line Plot
+    plt.figure()
+    for i, rewards in enumerate(rewards_list):
+        plt.plot(rewards, marker='o', linestyle='-', color=colors[i], label=labels_list[i])
+    plt.xlabel('Victim')
+    plt.ylabel('Cumulative Reward Value')
+    plt.title('Comparison of Reward Trends')
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
+
+    # Bar Plot
+    x = np.arange(len(rewards_list[0]))  # Create an array with the length of the lists
+    width = 0.8 / len(rewards_list)  # Adjust width based on number of reward lists
+
+    plt.figure()
+    for i, rewards in enumerate(rewards_list):
+        plt.bar(x + i * width - width * len(rewards_list) / 2, rewards, width, label=labels_list[i], color=colors[i], alpha=0.7)
+    plt.xlabel('Victim')
+    plt.ylabel('Cumulative Reward Value')
+    plt.title('Comparison of Rewards at Each Index')
+    plt.xticks(x)
+    plt.legend()
+    plt.grid(axis='y')
+    plt.tight_layout()
+    plt.show()
+
+    # Box Plot
+    plt.figure()
+    plt.boxplot(rewards_list, labels=labels_list, patch_artist=True, medianprops=dict(color="black"))
+    for patch, color in zip(plt.gca().artists, colors):
+        patch.set_facecolor(color)
+    plt.ylabel('Cumulative Reward Value')
+    plt.title('Distribution of Rewards')
+    plt.grid(True)
+    # plt.xticks(rotation=45) 
+    plt.tight_layout()
+    plt.show()

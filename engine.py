@@ -257,11 +257,6 @@ def train_both(args:object, env:object, beacon_agent:object, attacker_agent=None
 
 
 
-
-
-
-
-
 def train_TD_beacon(args:object, env:object, ppo_agent:object, attacker_agent=None):
     print("============================================================================================")
     start_time = datetime.now().replace(microsecond=0)
