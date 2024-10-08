@@ -65,7 +65,7 @@ class Double_Q_Critic(nn.Module):
         super(Double_Q_Critic, self).__init__()
 
         # Q1 architecture
-        self.l1 = nn.Linear(state_dim + action_dim, net_width)  #没有先提取特征
+        self.l1 = nn.Linear(state_dim + action_dim, net_width) 
         self.l2 = nn.Linear(net_width, net_width)
         self.l3 = nn.Linear(net_width, 1)
 
@@ -119,7 +119,7 @@ class TD3():
 		self.q_critic_optimizer = torch.optim.Adam(self.q_critic.parameters(), lr=lr_critic)
 		self.q_critic_target = copy.deepcopy(self.q_critic)
 
-		self.buffer = ReplayBuffer(state_dim, action_dim, max_size=int(1e6), dvc=device)
+		self.buffer = ReplayBuffer(state_dim, action_dim, max_size=int(1e4), dvc=device)
 
 	def select_action(self, state, deterministic):
 		with torch.no_grad():

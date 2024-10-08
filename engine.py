@@ -277,31 +277,38 @@ def train_TD_beacon(args:object, env:object, ppo_agent:object, attacker_agent=No
     checkpoint_path = directory
     print("save checkpoint path : " + checkpoint_path)
 
-    time_step = 0
+    time_step = 1
     i_episode = 1
 
     # training loop
     while i_episode <= args.episodes:
+        breaked=False
         current_ep_reward = 0
         current_ep_areward = 0
+
+        binfo, rewards, done, _ = env.step(beacon_agent=ppo_agent, attacker_agent=attacker_agent)
+        state, action, reward, dw = binfo
+
         for t in range(1, args.max_queries+1):
+            
             binfo, rewards, done, _ = env.step(beacon_agent=ppo_agent, attacker_agent=attacker_agent)
+            # print("Buffer: ", state, action, reward, binfo[0], dw)
+            ppo_agent.buffer.store(state, action, reward, binfo[0], dw)
+
+            state, action, reward, dw = binfo
 
             beacon_reward = rewards[0]
 
             current_ep_reward += beacon_reward
             current_ep_areward += rewards[1]
 
-            ppo_agent.buffer.store(binfo[0], binfo[1], binfo[2], binfo[3], binfo[4],)
-
-            # saving reward and is_terminals
-            # ppo_agent.buffer.rewards.append(beacon_reward)
-            # ppo_agent.buffer.is_terminals.append(done)
-
             time_step +=1
+            
+            if breaked:
+                break
 
             if done:
-                break
+                breaked=True
 
         print("Victim: {} \t Timestep : {} \t Beacon Reward : {}\t Attacker Reward : {}".format(env.victim_id, time_step, current_ep_reward, current_ep_areward))
 

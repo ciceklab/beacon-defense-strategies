@@ -4,9 +4,7 @@ import pickle
 import argparse
 import os
 import random
-
 import torch
-
 
 def reproducibility(seed: int):
     os.environ['PYTHONHASHSEED'] = str(seed)
@@ -21,7 +19,6 @@ def reproducibility(seed: int):
         torch.cuda.manual_seed(seed)
 reproducibility(3)
 
-
 # set device to cpu or cuda
 device = torch.device('cpu')
 
@@ -32,8 +29,6 @@ if(torch.cuda.is_available()):
 else:
     print("Device set to : cpu")
 
-
-
 def args_create():
     # @title Arguments
     parser = argparse.ArgumentParser(description='Actor Critic')
@@ -41,22 +36,22 @@ def args_create():
 
     # Environment Setup
     parser.add_argument('--data', default="/mnt/kerem/CEU", type=str, help='Dataset Path')
-    parser.add_argument('--episodes', default=7000, type=int, metavar='N', help='Number of episodes for training agent.')
+    parser.add_argument('--episodes', default=10000, type=int, metavar='N', help='Number of episodes for training agent.')
     parser.add_argument('--seed', default=3, type=int, help='Seed for reproducibility')
     parser.add_argument('--a_control_size', default=50, type=int, help='Attack Control group size')
     parser.add_argument('--b_control_size', default=50, type=int, help='Beacon Control group size')
-    parser.add_argument('--gene_size', default=100, type=int, help='States gene size')
+    parser.add_argument('--gene_size', default=100000, type=int, help='States gene size')
     parser.add_argument('--beacon_size', default=10, type=int, help='Beacon population size')
     parser.add_argument('--victim_prob', default=1, type=float, help='Victim inside beacon or not!')
-    parser.add_argument('--max_queries', default=5, type=int, help='Maximum queries per episode')
+    parser.add_argument('--max_queries', default=100, type=int, help='Maximum queries per episode')
     parser.add_argument('--evaluate', default=False, type=bool, help='Evaluation or Not')
 
 
     # Training Setup
-    parser.add_argument('--train', default="beacon", choices=["attacker", "beacon", "both"], type=str, help='Train side!')
+    parser.add_argument('--train', default="attacker", choices=["attacker", "beacon", "both"], type=str, help='Train side!')
     
-    parser.add_argument('--attacker_type', default="optimal", choices=["random", "optimal", "agent"], type=str, help='Type of the attacker')
-    parser.add_argument('--beacon_type', default="agent", choices=["random", "agent", "truth"], type=str, help='Type of the beacon')
+    parser.add_argument('--attacker_type', default="agent", choices=["random", "optimal", "agent"], type=str, help='Type of the attacker')
+    parser.add_argument('--beacon_type', default="truth", choices=["random", "agent", "truth", "beacon_strategy"], type=str, help='Type of the beacon')
 
     parser.add_argument('--beacon_agent', default="td", choices=["td", "ppo"], type=str, help='Type of the beacon')
 
@@ -70,8 +65,9 @@ def args_create():
 
     parser.add_argument('--results-dir', default='./results/train', type=str, metavar='PATH', help='path to cache (default: none)')
 
-    # args = parser.parse_args()  # running in command line
-    args = parser.parse_args('')  # running in ipynb
+
+    args = parser.parse_args()  # running in command line
+    # args = parser.parse_args('')  # running in ipynb
 
     args.results_dir = os.path.join(args.results_dir, "run"+str(len(os.listdir(args.results_dir))))
     os.makedirs(args.results_dir)
@@ -86,7 +82,11 @@ def args_create():
     print(args)
     return args
 
-# args = args_create()
+
+
+print("Reading Data ...")
+# args = args_create()   
+# 
 
 # CEU Beacon - it contains 164 people in total which we will divide into groups to experiment
 beacon = pd.read_csv(os.path.join("/mnt/kerem/CEU", "Beacon_164.txt"), index_col=0, delim_whitespace=True)
@@ -94,7 +94,6 @@ beacon = pd.read_csv(os.path.join("/mnt/kerem/CEU", "Beacon_164.txt"), index_col
 reference = pickle.load(open(os.path.join("/mnt/kerem/CEU", "reference.pickle"),"rb"))
 # Binary representation of the beacon; 0: no SNP (i.e. no mutation) 1: SNP (i.e. mutation)
 binary = np.logical_and(beacon.values != reference, beacon.values != "NN").astype(int)
-
 
 # Table that contains MAF (minor allele frequency) values for each position. 
 maf = pd.read_csv(os.path.join("/mnt/kerem/CEU", "MAF.txt"), index_col=0, delim_whitespace=True)
@@ -109,6 +108,8 @@ maf_values = maf["maf"].values
 binary = binary.T
 binary.shape #(164, 4029840)
 
+print("Start Training...")
+
 import sys
 from env import Env
 from ppo import PPO
@@ -117,7 +118,6 @@ from td import TD3
 from engine import train_beacon, train_attacker, train_both, train_TD_beacon
 
 args = args_create()
-
 def main():
     env = Env(args, beacon, maf_values, binary)
     
@@ -129,7 +129,7 @@ def main():
 
 
         if args.beacon_agent == "td":
-            state_dim = 9
+            state_dim = 18
             action_dim = 1  
             beacon_agent = TD3(state_dim, action_dim, max_action=1)
             train_TD_beacon(args, env, beacon_agent)
@@ -150,8 +150,8 @@ def main():
             
             
     elif args.train == "attacker":
-        attacker_state_dim = 400
-        attacker_action_dim = 10
+        attacker_state_dim = 3002
+        attacker_action_dim = 1000
 
         ################ PPO hyperparameters ################
         K_epochs = 300         # update policy for K epochs

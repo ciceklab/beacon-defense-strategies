@@ -4,7 +4,9 @@ import numpy as np
 from matplotlib_inline.backend_inline import FigureCanvas
 import csv
 import seaborn as sns
+import matplotlib.patches as mpatches
 
+import copy
 import torch
 
 
@@ -64,7 +66,20 @@ def lrt(number_of_people, genome, maf, response):
     return lrt
 
 
+def calculate_pvalues(beacon_lrts, control_lrts, b_control_size):
+    b_lrts = copy.deepcopy(beacon_lrts)
+    c_lrts = copy.deepcopy(control_lrts)
 
+    pvalues=[]
+    for blrt in b_lrts:
+        pvalue=torch.sum(blrt >= c_lrts) / b_control_size
+        pvalues.append(pvalue)
+    
+    if torch.any(torch.Tensor(pvalues) < 0):
+        print(b_lrts, c_lrts)
+        assert "Wrong p value"
+
+    return torch.Tensor(pvalues)
 
 #########################################LOG
 
@@ -301,4 +316,212 @@ def plot_comparisons(rewards_list, labels_list):
     plt.grid(True)
     # plt.xticks(rotation=45) 
     plt.tight_layout()
+    plt.show()
+
+
+
+def violin_plot(data, edge_color, fill_color, positions, ax):
+    parts = ax.violinplot(data, positions=positions, 
+                          widths=0.5, showmedians=True)
+    
+    for pc in parts['bodies']:
+        pc.set_facecolor(fill_color)
+        pc.set_edgecolor(edge_color)
+        pc.set_linewidth(1)
+        pc.set_alpha(1)
+    
+    # Customizing the median line
+    if 'cmedians' in parts:
+        parts['cmedians'].set_color(edge_color)
+        parts['cmedians'].set_linewidth(1)
+    
+    # Customizing the whiskers
+    for partname in ('cbars', 'cmins', 'cmaxes'):
+        vp = parts[partname]
+        vp.set_edgecolor(edge_color)
+        vp.set_linewidth(1)
+
+
+def box_plot(data, edge_color, fill_color, positions, ax):
+    """
+    Plots a box plot with custom style for each data set.
+    
+    Parameters:
+    data (array): 1D array of data points to plot.
+    edge_color (str): Color of the box edges.
+    fill_color (str): Fill color of the boxes.
+    positions (array): Positions where to place the boxes on the x-axis.
+    ax (matplotlib.axes.Axes): The axes to plot on.
+    """
+    bp = ax.boxplot(data, positions=positions, widths=0.5, patch_artist=True,
+                    boxprops=dict(facecolor=fill_color, color=edge_color, linewidth=1),
+                    medianprops=dict(color=edge_color, linewidth=1),
+                    whiskerprops=dict(color=edge_color, linewidth=1),
+                    capprops=dict(color=edge_color, linewidth=1),
+                    flierprops=dict(marker='o', color=edge_color, alpha=0.5))
+
+def plot_boxplot(data, labels, title, ylabel):
+    """
+    Generates a box plot for a given 3D numpy array with custom style and colors.
+    
+    Parameters:
+    data (numpy array): A 3D numpy array with shape (classes, samples, stages).
+    """
+    color_palette = ["#65879F", "#8B8C89", "#425062", "#8F5C5C", "#CFACAC"]
+    yticks = [1, 10, 20, 30, 40, 50]
+    classes, samples, stages = data.shape
+    
+    fig, ax = plt.subplots()
+    
+    x_positions = np.arange(stages) * (classes + 1)
+    for class_idx in range(classes):
+        class_data = data[class_idx]  # shape (samples, stages)
+        
+        for stage in range(stages):
+            stage_data = class_data[:, stage]
+            positions = x_positions + class_idx
+            edge_color = 'black'
+            fill_color = color_palette[class_idx]
+            box_plot(stage_data, edge_color, fill_color, [positions[stage]], ax)
+    
+    ax.set_xlabel('Query')
+    ax.set_ylabel(ylabel)
+    ax.set_title(title)
+    
+    # Setting the legend
+    handles = [mpatches.Rectangle((0, 0), 1, 1, color=color_palette[i], edgecolor='black', linewidth=4) for i in range(classes)]
+    ax.legend(handles, labels, loc="lower right")
+    
+    ax.set_xticks(x_positions + (classes - 1) / 2)
+    ax.set_xticklabels([f'{i}' for i in yticks])
+    ax.set_xlim(min(x_positions) - 1, max(x_positions) + (classes - 1) + 1)
+    
+    # Adding borders to separate classes
+    for i in range(1, stages):
+        ax.axvline(x=(i * (classes + 1)) - 1, color='black', linewidth=2, linestyle='--')
+
+    plt.show()
+
+
+def plot_violinplot(data, labels, title, ylabel):
+    """
+    Generates a violin plot for a given 3D numpy array with custom style and colors.
+    
+    Parameters:
+    data (numpy array): A 3D numpy array with shape (classes, samples, stages).
+    """
+    color_palette = ["#65879F", "#8B8C89", "#425062", "#8F5C5C", "#CFACAC"]
+    yticks = [1, 10, 20, 30, 40, 50]
+    classes, samples, stages = data.shape
+    
+    fig, ax = plt.subplots()
+    
+    x_positions = np.arange(stages) * (classes + 1)
+    for class_idx in range(classes):
+        class_data = data[class_idx]  # shape (samples, stages)
+        
+        for stage in range(stages):
+            stage_data = class_data[:, stage]
+            positions = x_positions + class_idx
+            edge_color = 'black'
+            fill_color = color_palette[class_idx]
+            violin_plot(stage_data, edge_color, fill_color, [positions[stage]], ax)
+    
+    ax.set_xlabel('Query')
+    ax.set_ylabel(ylabel)
+    ax.set_title(title)
+    
+    # Setting the legend
+    handles = [mpatches.Rectangle((0, 0), 1, 1, color=color_palette[i], edgecolor='black', linewidth=4) for i in range(classes)]
+    ax.legend(handles, labels, loc="lower right")
+    
+    ax.set_xticks(x_positions + (classes - 1) / 2)
+    ax.set_xticklabels([f'{i}' for i in yticks])
+    ax.set_xlim(min(x_positions) - 1, max(x_positions) + (classes - 1) + 1)
+    
+    # Adding borders to separate classes
+    for i in range(1, stages):
+        ax.axvline(x=(i * (classes + 1)) - 1, color='black', linewidth=2, linestyle='--')
+
+    plt.show()
+
+
+
+def line_plot(data, labels, title, ylabel):
+    fig, ax = plt.subplots()
+    color_palette = ["#65879F", "#8B8C89", "#425062", "#8F5C5C", "#CFACAC"]
+    x_ticks = ['1', '10', '20', '30', '40', '50']
+    classes, stages = data.shape
+    
+    x_positions = np.arange(stages)
+    
+    for class_idx in range(classes):
+        class_data = data[class_idx, :]  # shape (stages,)
+        edge_color = 'black'
+        line_color = color_palette[class_idx]
+        
+        # Plotting the line with markers
+        ax.plot(x_positions, class_data, marker='o', color=line_color, markeredgewidth=5, markeredgecolor=edge_color, linewidth=10)
+
+    ax.set_xlabel('Query')
+    ax.set_ylabel(ylabel)
+    ax.set_title(title)
+    
+    # Setting the legend
+    handles = [mpatches.Patch(color=color_palette[i], label=labels[i], edgecolor='black') for i in range(classes)]
+    ax.legend(handles, labels, loc="lower right")
+    
+    ax.set_xticks(x_positions)
+    ax.set_xticklabels(x_ticks)
+    ax.grid(True, linestyle='--', color='gray', alpha=0.5)
+    
+    plt.show()
+
+def scatter_plot(y_data, size_data, labels, title, ylabel):
+    fig, ax = plt.subplots()
+    color_palette = ["#65879F", "#8B8C89", "#425062", "#8F5C5C", "#CFACAC"]
+    x_ticks = ['10', '20', '30', '40', '50', '60', '70', '80', '90', '100']
+    classes, samples = y_data.shape
+
+    x_positions = np.arange(samples)
+
+    # Define marker shape groups based on size ranges
+    size_ranges = [(1, 10), (10, 15), (10, 20), (20, 30)]
+    marker_styles = ['v', '^', 's', 'o']  # Corresponding marker shapes for the ranges
+    size_labels = ["1-5", "5-10", "10-15", "15-20"]  # Labels for legend
+
+    # Loop through each class
+    for class_idx in range(classes):
+        y_class_data = y_data[class_idx, :]  # y-axis data for the class
+        size_class_data = size_data[class_idx, :]  # Size data for the class
+        edge_color = 'black'
+        marker_color = color_palette[class_idx]
+
+        # Scatter plot with custom marker shapes based on size ranges
+        for i, size_range in enumerate(size_ranges):
+            mask = (size_class_data >= size_range[0]) & (size_class_data < size_range[1])
+            ax.scatter(x_positions[mask], y_class_data[mask], color=marker_color, edgecolor=edge_color,
+                       marker=marker_styles[i], linewidth=1.5, s=1000)
+
+        ax.plot(x_positions, y_class_data, color=marker_color, linewidth=5)
+
+    ax.set_xlabel('Query')
+    ax.set_ylabel(ylabel)
+    ax.set_title(title)
+
+    # Legend for the marker shapes
+    shape_handles = [plt.Line2D([], [], color='w', marker=marker_style, markersize=30,
+                                markerfacecolor='gray', label=label, markeredgecolor='black')
+                     for marker_style, label in zip(marker_styles, size_labels)]
+    legend1 = ax.legend(shape_handles, size_labels, title="Num. Identified", loc="lower left", title_fontsize=36)
+    ax.add_artist(legend1)
+
+    # Setting the class labels legend
+    class_handles = [mpatches.Patch(color=color_palette[i], label=labels[i], edgecolor='black') for i in range(classes)]
+    ax.legend(class_handles, labels, loc="center right")
+
+    # Set x-ticks and show only selected x-ticks for clarity
+    ax.set_xticks(x_positions)
+    ax.set_xticklabels(x_ticks)
+
     plt.show()

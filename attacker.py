@@ -27,7 +27,7 @@ class Attacker():
 
         self.victim = victim
 
-        # print("Victim", self.victim_info)
+        # print("Victim", self.victim_info.size())
 
         ######################## Init the Control info
         temp_maf = torch.Tensor(self.mafs).unsqueeze(0).expand(self.args.a_control_size, -1)
@@ -41,6 +41,8 @@ class Attacker():
         # if self.args.attacker_type == "optimal":
         self.optimal_queries = self._init_optimal_attacker()
 
+        self.agent_queries = self._init_agent_attacker()
+
         ######################## Initializing the control LRTS
         self.control_lrts = torch.zeros(size=(self.args.a_control_size,))
         self.victim_lrt = torch.as_tensor(0)
@@ -52,39 +54,18 @@ class Attacker():
         # print("Attacker Side: ")
 
         min_control_lrt = torch.min(self.control_lrts)
-        max_control_lrt = torch.max(self.control_lrts)
+        mean_control_lrt = torch.mean(self.control_lrts)
+        # print(self.agent_queries)
 
-        # print("\tControls min: {} and max {} LRT".format(min_control_lrt, max_control_lrt))
-        # print("\tVictim: {} LRT".format(self.victim_lrt))
-        # print("\tVictim: {} Pvalue".format(self._calc_pvalue()))
+        victim_info = copy.deepcopy(self.victim_info[self.agent_queries, :])
 
+        multiplied_values = victim_info[:, 0] * victim_info[:, 1]
+        new_victim = torch.cat([multiplied_values.unsqueeze(1), victim_info[:, 2:]], dim=1)
 
-        temp_maf = torch.Tensor(self.mafs)
-        # temp_maf = torch.cat((temp_maf, min_control_lrt.unsqueeze(0), max_control_lrt.unsqueeze(0), self.victim_lrt.unsqueeze(0)))
-
-        # victim = torch.cat((self.victim, torch.tensor([2, 2, 2])))
-
-        state = torch.stack([self.victim, temp_maf], dim=-1)
-
-        # print("temp_maf: ", temp_maf)
-        # print("updated_victim: ", updated_victim)
-
-        # print("state: ", state.size())
-
-        victim_size = torch.nonzero(self.victim == 1).size(0) 
-        # print("victim_size", victim_size)
-
-        # From victim info get the SNPs that have not queried
-        spns_msk = (self.victim_info[:, 0] == 1) & (self.victim_info[:, 2] == -1)  # SNPs
-        filtered_ind = self.victim_info[spns_msk]
-        min_maf = min(filtered_ind[:, 1])
-        max_maf = max(filtered_ind[:, 1])
-        # print(filtered_ind[:, 1])
-        mean_maf = torch.mean(filtered_ind[:, 1])
-
-
-        # return [min_control_lrt, self.victim_lrt, victim_size, min_maf, max_maf, mean_maf]
-        return self.victim_info
+        flattened_victim = new_victim.flatten()
+        final_victim = torch.cat([flattened_victim, min_control_lrt.unsqueeze(0), mean_control_lrt.unsqueeze(0)], dim=0)
+        # print("final_victim.size(", final_victim.size())
+        return final_victim
 
     #################################################################################################
     # Update Beacon
@@ -134,7 +115,10 @@ class Attacker():
             return self.optimal_queries[current_step]
 
         if self.args.attacker_type == "agent":
-            return self.optimal_queries[agent_action]
+            return self.agent_queries[agent_action]
+        
+        if self.args.attacker_type == "random":
+            return torch.randint(0, self.args.gene_size, (1,)).item()
         
 
 
@@ -179,6 +163,22 @@ class Attacker():
         return queries
     
 
+    def _init_agent_attacker(self):
+        # print("\tInitializing the Optimal Attack Strategy")
+        maf_values = self.mafs
+        sorted_gene_indices = torch.argsort(maf_values)  # Sort the MAFs using PyTorch
+        # print("Victim : {}".format(self.victim))
+        # print("Victim Sorted Genes: {}".format(sorted_gene_indices))
+        
+        mask_one = sorted_gene_indices[(self.victim[sorted_gene_indices] == 1)][:1000:2] # Get the SNPs with value 1
+        mask_zero = sorted_gene_indices[(self.victim[sorted_gene_indices] == 0)][:1000:2]  # Get the SNPs with value 0
+        
+        # Use torch.cat to concatenate the indices
+        queries = torch.cat((mask_one, mask_zero))
+        # print(queries.size())
+        # print(f"\tAttacker Queries: {queries}")
+        return queries
+    
 
 
 
