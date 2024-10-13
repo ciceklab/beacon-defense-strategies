@@ -12,17 +12,11 @@ from attacker import Attacker
 import torch
 
 class Env():
-    def __init__(self, args, beacon, maf, binary):
-        # self.gene_sizes=[100, 200, 500, 1000]
-        # args.gene_size = random.choice(self.gene_sizes)
-        # print("GENE SIZE: ", args.gene_size)
-
+    def __init__(self, args, maf, binary):
         # self.attackers=["optimal", "optimal", "random"]
         # args.attacker_type = random.choice(self.attackers)
-        print("ATTACKER TYPE: ", args.attacker_type)
 
-
-        self.beacon_people=beacon
+        # self.beacon_people=beacon
         self.maf=maf
         self.args=copy.copy(args)
         self.binary=binary
@@ -38,6 +32,7 @@ class Env():
 
         self.episode = 0
         print("==================================⬇️⬇️⬇️⬇️Episode: {}⬇️⬇️⬇️⬇️==============================".format(self.episode+1))
+        print("ATTACKER TYPE: ", self.args.attacker_type)
 
 
         # Randomly set populations and genes
@@ -72,11 +67,8 @@ class Env():
     # Reset the environment after an episode
     def reset(self) -> torch.Tensor:
         self.episode += 1
-        # self.args.gene_size = random.choice(self.gene_sizes)
-        # print("GENE SIZE: ", self.args.gene_size)
 
         # self.args.attacker_type = random.choice(self.attackers)
-        print("ATTACKER TYPE: ", self.args.attacker_type)
 
 
         self.beacon_prewards = []
@@ -91,6 +83,7 @@ class Env():
         self.beacon_agent_actions = []
 
         print("==================================⬇️⬇️⬇️⬇️Episode: {}⬇️⬇️⬇️⬇️==============================".format(self.episode+1))
+        print("ATTACKER TYPE: ", self.args.attacker_type)
 
         # print("Reseting the Populations")
         # Randomly set populations and genes
@@ -107,12 +100,13 @@ class Env():
     def step(self, beacon_agent=None, attacker_agent=None):
         # print("Query Number: {}".format(self.current_step))
         done = False
-        # print("--------------------------------States---------------------------------")
+        if self.current_step % 100 ==0:
+            print(f"--------------------------------Query: {self.current_step+1}---------------------------------")
 
         ################# Take the actions
         if self.args.attacker_type == "agent":
             attacker_state = self.attacker.get_state()
-            attacker_state = torch.flatten(attacker_state).float()
+            # attacker_state = torch.flatten(attacker_state).float()
             # print("Attacker State: ", attacker_state)
             agent_action = attacker_agent.select_action(attacker_state) 
             attacker_action = self.attacker.act(self.current_step, agent_action) 
@@ -146,16 +140,16 @@ class Env():
             
 
         # self.attacker_agent_actions.append(agent_action)
-        self.beacon_agent_actions.append(beacon_action)
+        # self.beacon_agent_actions.append(beacon_action)
 
 
         ################# Save the Actions
         # beacon_action = torch.clamp(torch.as_tensor(beacon_action), min=0, max=1)
-
-        print("--------------------------------Actions---------------------------------")
-        print("Attacker Action: Position {} with MAF: {} and SNP: {} and LRT: {}".format(attacker_action, self.maf[attacker_action], self.victim[attacker_action], lrt(number_of_people=self.args.beacon_size, genome=self.victim[attacker_action], maf=self.maf[attacker_action], response=beacon_action)))
-        print("Beacon Action: {}".format(beacon_action))
-        print("Beacon State: {}".format(beacon_state))
+        if self.current_step % 100 ==0:
+        # print("--------------------------------Actions---------------------------------")
+            print("Attacker Action: Position {} with MAF: {} and SNP: {} and LRT: {}".format(attacker_action, self.maf[attacker_action], self.victim[attacker_action], lrt(number_of_people=self.args.beacon_size, genome=self.victim[attacker_action], maf=self.maf[attacker_action], response=beacon_action)))
+            print("Beacon Action: {}".format(beacon_action))
+            print("Beacon State: {}".format(beacon_state))
         # print("-----------------------------------------------------------------")
 
         # print("--------------------------------Updating---------------------------------")
@@ -163,6 +157,13 @@ class Env():
         ########## Update the states
         self.beacon.update(beacon_action=beacon_action, attacker_action=attacker_action)
         self.attacker.update(beacon_action=beacon_action, attacker_action=attacker_action)
+        if self.current_step % 100 ==0:
+
+            print("Beacon Min LRT: ", torch.min(self.beacon.beacon_lrts))
+            print("Beacon Mean LRT: ", torch.mean(self.beacon.beacon_lrts))
+            print("Victim LRT in beacon: ", (self.beacon.beacon_lrts[self.victim_id]))
+            print("Control Min LRT: ", torch.min(self.beacon.control_lrts))
+            print("Control Mean LRT: ", torch.mean(self.beacon.control_lrts))
 
         # print("--------------------------------Rewards---------------------------------")
 
@@ -170,19 +171,19 @@ class Env():
         beacon_reward, beacon_done, beacon_rewards = self.beacon.calc_reward(beacon_action=beacon_action)
         attacker_reward, attacker_done, attacker_rewards = self.attacker.calc_reward(beacon_action, self.current_step)
 
-        print("Beacon utility reward: {}  privacy reward: {}".format(beacon_rewards[1], beacon_rewards[0]))
+        # print("Beacon utility reward: {}  privacy reward: {}".format(beacon_rewards[1], beacon_rewards[0]))
         
         # For repeatitive queries
         if attacker_action in self.attacker_actions:
             attacker_reward -= 5
 
 
-        self.beacon_prewards.append(beacon_rewards[0])
-        self.beacon_urewards.append(beacon_rewards[1])
-        self.beacon_total.append(beacon_reward)
-        self.attacker_prewards.append(attacker_rewards[0])
-        self.attacker_urewards.append(attacker_rewards[1])
-        self.attacker_total.append(attacker_reward)
+        # self.beacon_prewards.append(beacon_rewards[0])
+        # self.beacon_urewards.append(beacon_rewards[1])
+        # self.beacon_total.append(beacon_reward)
+        # self.attacker_prewards.append(attacker_rewards[0])
+        # self.attacker_urewards.append(attacker_rewards[1])
+        # self.attacker_total.append(attacker_reward)
         self.attacker_actions.append(attacker_action)
 
         self.current_step += 1
@@ -191,7 +192,18 @@ class Env():
             print("✅✅✅ Attacker Could NOT Indentify the VICTIM ✅✅✅")
 
             
-        done = beacon_done or done or attacker_done
+        done = done or attacker_done
+
+        if done:
+            print(f"--------------------------------Query: {self.current_step+1}---------------------------------")
+            print("Attacker Action: Position {} with MAF: {} and SNP: {} and LRT: {}".format(attacker_action, self.maf[attacker_action], self.victim[attacker_action], lrt(number_of_people=self.args.beacon_size, genome=self.victim[attacker_action], maf=self.maf[attacker_action], response=beacon_action)))
+            print("Beacon Action: {}".format(beacon_action))
+            print("Beacon State: {}".format(beacon_state))
+            print("Beacon Min LRT: ", torch.min(self.beacon.beacon_lrts))
+            print("Beacon Mean LRT: ", torch.mean(self.beacon.beacon_lrts))
+            print("Victim LRT in beacon: ", (self.beacon.beacon_lrts[self.victim_id]))
+            print("Control Min LRT: ", torch.min(self.beacon.control_lrts))
+            print("Control Mean LRT: ", torch.mean(self.beacon.control_lrts))
 
         # log_env(info=self.beacon.beacon_info, episode=self.episode, step=self.current_step, log_env_name=self.log_beacon)
         # log_env(info=self.beacon.control_info, episode=self.episode, step=self.current_step, log_env_name=self.log_beacon_control)
@@ -213,7 +225,7 @@ class Env():
     def get_populations(self):
         print("-------------------------")
 
-        if 1 + self.args.a_control_size + self.args.b_control_size + self.args.beacon_size > self.beacon_people.shape[1]:
+        if 1 + self.args.a_control_size + self.args.b_control_size + self.args.beacon_size > 164:
             raise Exception("Size of the population is too low!")
         
         beacon_size = self.args.beacon_size + 1
@@ -245,9 +257,12 @@ class Env():
         # print("-------------------------")
 
         # Just for test 
-        beacon_control = attack_control
+        # beacon_control = attack_control
         # print(beacon_case)
-        return torch.Tensor(beacon_case), torch.Tensor(beacon_control), torch.Tensor(attack_control), torch.Tensor(victim), victim_ind, torch.Tensor(self.maf[:self.args.gene_size])
+        mafs = torch.Tensor(self.maf[:self.args.gene_size])
+        nsnp_msk = (mafs == 0)
+        mafs[nsnp_msk] = torch.as_tensor(0.001)
+        return torch.Tensor(beacon_case), torch.Tensor(beacon_control), torch.Tensor(attack_control), torch.Tensor(victim), victim_ind, mafs
     
 
 

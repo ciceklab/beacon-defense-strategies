@@ -18,29 +18,14 @@ class Attacker():
         # print("Initializing {} Attacker".format(self.args.attacker_type))
 
 
-        ######################## Init the Beacon info
-        temp_maf = torch.Tensor(self.mafs)
-        responses = torch.ones(size=(self.args.gene_size,))*-1
-        current_query = torch.zeros(size=(self.args.gene_size,))
-        lrts = torch.zeros(size=(self.args.gene_size,))
-        self.victim_info = torch.stack([victim, temp_maf, responses, lrts], dim=-1)
-
-        self.victim = victim
-
-        # print("Victim", self.victim_info.size())
-
-        ######################## Init the Control info
-        temp_maf = torch.Tensor(self.mafs).unsqueeze(0).expand(self.args.a_control_size, -1)
-        responses = torch.ones(size=(self.args.a_control_size, self.args.gene_size))*-1
-        current_query = torch.ones(size=(self.args.a_control_size, self.args.gene_size))
-        lrts = torch.zeros(size=(self.args.a_control_size, self.args.gene_size))
-        self.control_info = torch.stack([torch.Tensor(self.attacker_control), temp_maf, responses, current_query, lrts], dim=-1)
-
-
+        self.beacon_actions =  torch.tensor([], dtype=torch.float32)
+        self.attacker_actions = torch.tensor([], dtype=torch.long)
         #########################
-        # if self.args.attacker_type == "optimal":
-        self.optimal_queries = self._init_optimal_attacker()
 
+        if self.args.attacker_type == "optimal":
+            self.optimal_queries = self._init_optimal_attacker()
+    
+        # if self.args.attacker_type == "agent":
         self.agent_queries = self._init_agent_attacker()
 
         ######################## Initializing the control LRTS
@@ -50,39 +35,31 @@ class Attacker():
 
     #################################################################################################
     # Get Beacon state
-    def get_state(self)->float:
-        # print("Attacker Side: ")
-
+    def get_state(self) -> float:
         min_control_lrt = torch.min(self.control_lrts)
         mean_control_lrt = torch.mean(self.control_lrts)
-        # print(self.agent_queries)
+        multiplied_values = self.victim[self.agent_queries] * self.mafs[self.agent_queries]
+        final_victim = torch.cat((
+            multiplied_values.flatten(),
+            min_control_lrt.unsqueeze(0), 
+            mean_control_lrt.unsqueeze(0)
+        ))
 
-        victim_info = copy.deepcopy(self.victim_info[self.agent_queries, :])
-
-        multiplied_values = victim_info[:, 0] * victim_info[:, 1]
-        new_victim = torch.cat([multiplied_values.unsqueeze(1), victim_info[:, 2:]], dim=1)
-
-        flattened_victim = new_victim.flatten()
-        final_victim = torch.cat([flattened_victim, min_control_lrt.unsqueeze(0), mean_control_lrt.unsqueeze(0)], dim=0)
-        # print("final_victim.size(", final_victim.size())
         return final_victim
 
     #################################################################################################
     # Update Beacon
     def update(self, beacon_action, attacker_action):
-        self.attacker_action = attacker_action
-        self.victim_info[self.attacker_action, 2] = torch.as_tensor(beacon_action) #TRUTH
-        # print(self.victim_info)
+        beacon_action_tensor = torch.as_tensor(beacon_action, dtype=torch.float32)
+        attacker_action_tensor = torch.as_tensor([attacker_action], dtype=torch.long)
 
+        self.attacker_action = attacker_action_tensor
+        self.beacon_actions = torch.cat((self.beacon_actions, beacon_action_tensor.unsqueeze(0)))
+        self.attacker_actions = torch.cat((self.attacker_actions, attacker_action_tensor))
 
-        # Update the Attacker control group and calculate the LRT values
-        victim_lrts = calculate_ind_lrt(self.victim_info, gene_size=self.args.gene_size, number_of_people=self.args.beacon_size)
-        self.victim_info[:, 3] = torch.Tensor(victim_lrts)
-        self.victim_lrt = torch.sum(victim_lrts)
-
-        #Update Control Group
-        self.control_info[:, self.attacker_action, 2] = torch.as_tensor(1) #TRUTH
-        self.control_lrts = self._calc_group_lrts(self.control_info, True)
+        maf = self.mafs[self.attacker_actions]
+        self.victim_lrt =  self._calc_group_lrts(self.victim[self.attacker_actions], maf, self.beacon_actions, self.victim_lrt, True)
+        self.control_lrts = self._calc_group_lrts(self.attacker_control[:, self.attacker_actions], maf, self.beacon_actions, self.control_lrts )
 
 
     #################################################################################################
@@ -124,17 +101,26 @@ class Attacker():
 
     #################################################################################################
     #LRT PVALUES
-    def _calc_group_lrts(self, group, save=True)->float:
-        lrt_values = []
-        for index, individual in enumerate(group):
-            lrts = calculate_ind_lrt(group[index, :, :], gene_size=self.args.gene_size, number_of_people=self.args.beacon_size)
+    def _calc_group_lrts(self, genome, maf, response, prev_beacon_lrts, one_dim=False) -> torch.Tensor:
+        error = 0.001
 
+        one_minus_maf = (1 - maf[-1])  # Last MAF value
+        DN_i = one_minus_maf.pow(2 * self.args.beacon_size)
+        DN_i_1 = one_minus_maf.pow(2 * self.args.beacon_size - 2)
 
-            lrt_values.append(torch.sum(lrts))############ Sum of the LRTs
-            if save:
-                group[index, :, 4] = torch.Tensor(lrts)
+        log1 = torch.log(DN_i) - torch.log(error * DN_i_1)
+        log2 = torch.log((error * DN_i_1) * (1 - DN_i)) - torch.log(DN_i * (1 - error * DN_i_1))
 
-        return torch.Tensor(lrt_values)
+        if one_dim:
+            last_genome=genome[-1]
+        else:
+            last_genome=genome[:, -1]
+
+        lrt = (log1 + log2 * response[-1]).mul(last_genome)
+        updated_beacon_lrts = prev_beacon_lrts + lrt
+
+        return updated_beacon_lrts
+    
     
     def _calc_pvalue(self):
         victim_lrt = copy.deepcopy(self.victim_lrt)

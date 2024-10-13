@@ -5,12 +5,14 @@ from matplotlib_inline.backend_inline import FigureCanvas
 import csv
 import seaborn as sns
 import matplotlib.patches as mpatches
+from matplotlib.lines import Line2D
 
 import copy
 import torch
 
 
 #######################################LRT
+# @profile
 def calculate_ind_lrt(ind:torch.Tensor, gene_size, number_of_people=60, error=0.001)->float:
     lrts = torch.zeros(gene_size, dtype=torch.double)
     ind = ind.double()
@@ -36,6 +38,7 @@ def calculate_ind_lrt(ind:torch.Tensor, gene_size, number_of_people=60, error=0.
     lrts[~queried_spns_msk] = lrt
     # print("lrts, lrts.size()", lrts, lrts.size())
     return lrts
+
 
 
 
@@ -368,7 +371,7 @@ def plot_boxplot(data, labels, title, ylabel):
     data (numpy array): A 3D numpy array with shape (classes, samples, stages).
     """
     color_palette = ["#65879F", "#8B8C89", "#425062", "#8F5C5C", "#CFACAC"]
-    yticks = [1, 10, 20, 30, 40, 50]
+    yticks = ['100', '200', '300', '400', '500', '600', '700', '800', '900', '1000']
     classes, samples, stages = data.shape
     
     fig, ax = plt.subplots()
@@ -480,7 +483,7 @@ def line_plot(data, labels, title, ylabel):
 def scatter_plot(y_data, size_data, labels, title, ylabel):
     fig, ax = plt.subplots()
     color_palette = ["#65879F", "#8B8C89", "#425062", "#8F5C5C", "#CFACAC"]
-    x_ticks = ['10', '20', '30', '40', '50', '60', '70', '80', '90', '100']
+    x_ticks = ['100', '200', '300', '400', '500', '600', '700', '800', '900', '1000']
     classes, samples = y_data.shape
 
     x_positions = np.arange(samples)
@@ -513,11 +516,11 @@ def scatter_plot(y_data, size_data, labels, title, ylabel):
     shape_handles = [plt.Line2D([], [], color='w', marker=marker_style, markersize=30,
                                 markerfacecolor='gray', label=label, markeredgecolor='black')
                      for marker_style, label in zip(marker_styles, size_labels)]
-    legend1 = ax.legend(shape_handles, size_labels, title="Num. Identified", loc="lower left", title_fontsize=36)
+    legend1 = ax.legend(shape_handles, size_labels, title="Num of Predicted", loc="lower left", title_fontsize=36)
     ax.add_artist(legend1)
 
     # Setting the class labels legend
-    class_handles = [mpatches.Patch(color=color_palette[i], label=labels[i], edgecolor='black') for i in range(classes)]
+    class_handles = [Line2D([0], [0], color=color_palette[i], linewidth=6, label=labels[i]) for i in range(classes)]
     ax.legend(class_handles, labels, loc="center right")
 
     # Set x-ticks and show only selected x-ticks for clarity
