@@ -24,7 +24,19 @@ class Attacker():
 
         if self.args.attacker_type == "optimal":
             self.optimal_queries = self._init_optimal_attacker()
-    
+        
+        if self.args.attacker_type == "differential_discriminative_power":
+            self.diff_discriminative_queries = self._init_diff_discriminative_attacker()
+
+        # print("Optimal Attacker", self.optimal_queries)
+        # print("diff_discriminative_queries Attacker", self.diff_discriminative_queries)
+
+        if self.args.attacker_type == "random":
+            sorted_gene_indices = torch.argsort(self.mafs)
+            K = int(self.args.gene_size * 0.1)
+            self.risky_queries = sorted_gene_indices[:K].tolist()
+            self.non_risky_queries = sorted_gene_indices[K:].tolist()
+
         # if self.args.attacker_type == "agent":
         self.agent_queries = self._init_agent_attacker()
 
@@ -94,12 +106,38 @@ class Attacker():
         if self.args.attacker_type == "agent":
             return self.agent_queries[agent_action]
         
+        # if self.args.attacker_type == "random":
+        #     return torch.randint(0, self.args.gene_size, (1,)).item()
+
         if self.args.attacker_type == "random":
-            return torch.randint(0, self.args.gene_size, (1,)).item()
+            if random.random() < self.risk_level and self.risky_queries:
+                query = random.choice(self.risky_queries)
+                self.risky_queries.remove(query)
+            elif self.non_risky_queries:
+                query = random.choice(self.non_risky_queries)
+                self.non_risky_queries.remove(query)
+            else:
+                query = None
+            return query
+
+        if self.args.attacker_type == "differential_discriminative_power":
+            return self.diff_discriminative_queries[current_step]
         
 
 
     #################################################################################################
+    def _calc_group_lrts_all_snps(self, genome, maf, response) -> torch.Tensor:
+        error = 0.001
+
+        one_minus_maf = (1 - maf)
+        DN_i = one_minus_maf.pow(2 * self.args.beacon_size)
+        DN_i_1 = one_minus_maf.pow(2 * self.args.beacon_size - 2)
+
+        log1 = torch.log(DN_i) - torch.log(error * DN_i_1)
+        log2 = torch.log((error * DN_i_1) * (1 - DN_i)) - torch.log(DN_i * (1 - error * DN_i_1))
+
+        lrt = (log1 + log2 * response).unsqueeze(0) * genome 
+        return lrt
     #LRT PVALUES
     def _calc_group_lrts(self, genome, maf, response, prev_beacon_lrts, one_dim=False) -> torch.Tensor:
         error = 0.001
@@ -164,7 +202,48 @@ class Attacker():
         # print(queries.size())
         # print(f"\tAttacker Queries: {queries}")
         return queries
-    
+
+    def _init_diff_discriminative_attacker(self, k=5):
+        victim_lrts = self._calc_group_lrts_all_snps(self.victim, self.mafs, 1)
+        control_lrts = self._calc_group_lrts_all_snps(self.attacker_control, self.mafs, 1)
+        # print("Beacon Case genome: ", self.victim)
+        # print("attacker_control genome: ", self.attacker_control)
+
+        # print("Mafs: ", self.mafs)
+        # print("victim_lrts.size(): ", victim_lrts.size())
+        # print("victim_lrts.size(): ", victim_lrts)
+        # print("control_lrts.size(): ", control_lrts.size())
+        # print("control_lrts.size(): ", control_lrts)
 
 
+        discriminative_powers = victim_lrts.mean(dim=0) - control_lrts.mean(dim=0)
+        # print("discriminative_powers.size(): ", discriminative_powers.size())
+        # print("beacon_lrts.mean(dim=0): ",victim_lrts.mean(dim=0))
+        # print("control_lrts.mean(dim=0) ", control_lrts.mean(dim=0))
+        # print("discriminative_powers.size(): ", discriminative_powers)
+
+
+        flipped_victim_lrts = self._calc_group_lrts_all_snps(self.victim, self.mafs, 0)
+        flipped_control_lrts = self._calc_group_lrts_all_snps(self.attacker_control, self.mafs, 0)
+        flipped_discriminative_powers = flipped_victim_lrts.mean(dim=0) - flipped_control_lrts.mean(dim=0)
+
+        # print("flipped_victim_lrts.size(): ", flipped_victim_lrts)
+        # print("flipped_control_lrts.size(): ", flipped_control_lrts)
+        # print("flipped_victim_lrts.mean(dim=0): ", flipped_victim_lrts.mean(dim=0))
+        # print("flipped_control_lrts.mean(dim=0): ", flipped_control_lrts.mean(dim=0))
+        # print("flipped_discriminative_powers: ", flipped_discriminative_powers)
+
+
+        delta_discriminative_powers = discriminative_powers - flipped_discriminative_powers
+        # print("delta_discriminative_powers.size(): ", delta_discriminative_powers.size())
+        # print("delta_discriminative_powers.size(): ", delta_discriminative_powers)
+
+        sorted_gene_indices = torch.argsort(delta_discriminative_powers, descending=False)
+        mask_one = (self.victim[sorted_gene_indices] == 1)  # Get the SNPs with value 1
+        mask_zero = (self.victim[sorted_gene_indices] == 0)  # Get the SNPs with value 0
+        
+        # Use torch.cat to concatenate the indices
+        queries = torch.cat((sorted_gene_indices[mask_one], sorted_gene_indices[mask_zero]))#[:self.args.max_queries]
+        # print("top_k_indices: ", top_k_indices)
+        return queries
 

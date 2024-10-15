@@ -528,3 +528,53 @@ def scatter_plot(y_data, size_data, labels, title, ylabel):
     ax.set_xticklabels(x_ticks)
 
     plt.show()
+
+
+def line_and_bar_plot(line_data, bar_data, labels, title, ylabel_line, ylabel_bar):
+    fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, gridspec_kw={'height_ratios': [3, 1]})
+    
+    color_palette = ["black", "tomato", "blue", "cyan", "orange"]
+    x_ticks = ['100', '200', '300', '400', '500', '600', '700', '800', '900', '1000']
+    classes, stages = line_data.shape
+    
+    x_positions = np.arange(stages)
+    bar_width = 0.1  # Bar width for the bar plot
+    
+    # Plotting the line data
+    for class_idx in range(classes):
+        class_data = line_data[class_idx, :]  # shape (stages,)
+        edge_color = 'black'
+        line_color = color_palette[class_idx]
+        
+        # Plotting the line with markers
+        ax1.plot(x_positions, class_data, marker='o', color=line_color, markeredgewidth=5, markeredgecolor=edge_color, linewidth=8)
+
+    ax1.set_ylabel(ylabel_line)
+    ax1.set_title(title)
+    
+    # Set x-axis ticks and labels
+    ax1.set_xticks(x_positions)
+    ax1.set_xticklabels(x_ticks)
+    ax1.grid(True, linestyle='--', color='gray', alpha=0.5)
+    
+    # Adding legend for line plot
+    handles = [mpatches.Patch(color=color_palette[i], label=labels[i], edgecolor='black') for i in range(classes)]
+    ax1.legend(handles, labels, loc="lower left")
+    
+    # Plotting the bar data on the lower axis
+    for class_idx in range(classes):
+        bar_vals = bar_data[class_idx, :]  # shape (stages,)
+        bar_color = color_palette[class_idx]
+        
+        # Offset the bar positions to avoid overlap
+        ax2.bar(x_positions + (class_idx - classes / 2) * bar_width, bar_vals, width=bar_width, color=bar_color, alpha=0.6)
+
+    # Set ylabel for bar plot
+    ax2.set_ylabel(ylabel_bar)
+    ax2.set_xlabel('Query')
+    
+    ax2.set_xticks(x_positions)
+    ax2.set_xticklabels(x_ticks)
+    
+    plt.tight_layout()
+    plt.show()

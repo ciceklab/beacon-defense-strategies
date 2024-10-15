@@ -37,6 +37,12 @@ class Beacon():
         if self.args.beacon_type == "strategic":
             self.strategy_positions = self._init_strategic_beaon()
 
+        if self.args.beacon_type == "qbudget":
+            p = 5
+            initial_budget = -torch.log(torch.tensor(p))
+            self.budgets = torch.full(size=(self.args.beacon_size,), fill_value=initial_budget)
+        
+
 
         
     #################################################################################################
@@ -135,39 +141,92 @@ class Beacon():
     # Beacon Action
     def act(self, attacker_action, max_pvalue_change_threshold):
         if self.args.beacon_type == "random":
-            if random.random() < 0.7:
+            has_snp = torch.sum(self.beacon_case[:, attacker_action]) > 0
+            if not has_snp:
                 return 1
             else:
-                return 0
-        if self.args.beacon_type == "urandom":
-            random_number = np.random.normal(0.8, 0.1)
-            random_number = np.clip(random_number, 0, 1)
-            return random_number
+                if random.random() < 0.7:
+                    return 1
+                else:
+                    return 0
         if self.args.beacon_type == "truth":
             return 1
         if self.args.beacon_type == "beacon_strategy":
             return self.beacon_strategy_pvalue_change(self.beacon_case, attacker_action, max_pvalue_change_threshold)
         if self.args.beacon_type == "baseline":
-            if self.mafs[attacker_action] in self.baseline_mafs:
+            if self.mafs[attacker_action] in self.baseline_mafs: 
                 return 0
-            else:
+            else: 
+                return 1
+        if self.args.beacon_type == "qbudget":
+
+            has_snp = torch.sum(self.beacon_case[:, attacker_action]) > 0
+            # If no one in the dataset has the SNP, return 1 (meaning no one has it)
+            if not has_snp:
                 return 1
 
-    def _init_strategic_beaon(self, k=1):
+            # If someone has the SNP, we now check budgets and remove those with exhausted budgets
+            valid_individuals = self.budgets > 0
+
+            # Check if any valid individuals (with remaining budgets) have the SNP
+            remaining_genomes = self.beacon_case[valid_individuals, attacker_action]
+            has_snp_after_budget_check = torch.sum(remaining_genomes) > 0
+
+            # If no valid individuals have the SNP after the budget check, return 0
+            if not has_snp_after_budget_check:
+                return 0
+
+            # Otherwise, return 1 (indicating someone with a valid budget has the SNP)
+            return 1
+        
+        if self.args.beacon_type == "strategic":
+            if attacker_action in self.strategy_positions: 
+                return 0
+            else: 
+                return 1
+
+    def _init_strategic_beaon(self, k=10):
         beacon_lrts = self._calc_group_lrts_all_snps(self.beacon_case, self.mafs, 1)
         control_lrts = self._calc_group_lrts_all_snps(self.beacon_control, self.mafs, 1)
+        # print("Beacon Case genome: ", self.beacon_case)
+        # print("beacon_control genome: ", self.beacon_control)
+
+        # print("Mafs: ", self.mafs)
+        # print("beacon_lrts.size(): ", beacon_lrts.size())
+        # print("beacon_lrts.size(): ", beacon_lrts)
+        # print("control_lrts.size(): ", control_lrts.size())
+        # print("control_lrts.size(): ", control_lrts)
+
+
         discriminative_powers = beacon_lrts.mean(dim=0) - control_lrts.mean(dim=0)
+        # print("discriminative_powers.size(): ", discriminative_powers.size())
+        # print("beacon_lrts.mean(dim=0): ",beacon_lrts.mean(dim=0))
+        # print("control_lrts.mean(dim=0) ", control_lrts.mean(dim=0))
+        # print("discriminative_powers.size(): ", discriminative_powers)
 
 
-        flipped_beacon_lrts = self._calc_group_lrts(self.beacon_case, self.mafs, 0)
-        flipped_control_lrts = self._calc_group_lrts(self.beacon_control, self.mafs, 0)
+        flipped_beacon_lrts = self._calc_group_lrts_all_snps(self.beacon_case, self.mafs, 0)
+        flipped_control_lrts = self._calc_group_lrts_all_snps(self.beacon_control, self.mafs, 0)
         flipped_discriminative_powers = flipped_beacon_lrts.mean(dim=0) - flipped_control_lrts.mean(dim=0)
 
+        # print("flipped_beacon_lrts.size(): ", flipped_beacon_lrts)
+        # print("flipped_control_lrts.size(): ", flipped_control_lrts)
+        # print("flipped_beacon_lrts.mean(dim=0): ", flipped_beacon_lrts.mean(dim=0))
+        # print("flipped_control_lrts.mean(dim=0): ", flipped_control_lrts.mean(dim=0))
+        # print("flipped_discriminative_powers: ", flipped_discriminative_powers)
+
+
         delta_discriminative_powers = discriminative_powers - flipped_discriminative_powers
+        # print("delta_discriminative_powers.size(): ", delta_discriminative_powers.size())
+        # print("delta_discriminative_powers.size(): ", delta_discriminative_powers)
+
+
+        sorted_gene_indices = torch.argsort(delta_discriminative_powers, descending=False)
 
         num_snps_to_flip = int(len(delta_discriminative_powers) * (k / 100))
         top_k_indices = torch.topk(delta_discriminative_powers, num_snps_to_flip).indices
-        return top_k_indices
+        # print("top_k_indices: ", top_k_indices)
+        return sorted_gene_indices[:10000]
 
 
     def _init_baseline_beaon(self, k=1):
@@ -200,6 +259,14 @@ class Beacon():
         log2 = torch.log((error * DN_i_1) * (1 - DN_i)) - torch.log(DN_i * (1 - error * DN_i_1))
 
         lrt = (log1 + log2 * response[-1]).mul(genome[:, -1])
+
+        # Update the Budgets
+        if self.args.beacon_type == "qbudget":
+            valid_individuals = (lrt != 0) & (self.budgets > 0)
+            if torch.sum(valid_individuals) > 0:
+                budget_costs = self._calculate_budget_cost(maf[-1])
+                self.budgets[valid_individuals] -= budget_costs[valid_individuals]
+
         updated_beacon_lrts = prev_beacon_lrts + lrt
 
         return updated_beacon_lrts
@@ -230,3 +297,7 @@ class Beacon():
         # print(count_ones, total_people, percentage)
         return percentage 
 
+
+    def _calculate_budget_cost(self, maf_value):
+        D_qi = (1 - maf_value).pow(self.args.beacon_size - 1)
+        return -torch.log(1 - D_qi)
