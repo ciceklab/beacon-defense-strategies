@@ -25,7 +25,7 @@ class Attacker():
         if self.args.attacker_type == "optimal":
             self.optimal_queries = self._init_optimal_attacker()
         
-        if self.args.attacker_type == "differential_discriminative_power":
+        if self.args.attacker_type == "SF":
             self.diff_discriminative_queries = self._init_diff_discriminative_attacker()
 
         # print("Optimal Attacker", self.optimal_queries)
@@ -46,7 +46,7 @@ class Attacker():
 
 
     #################################################################################################
-    # Get Beacon state
+    # Get Attacker state
     def get_state(self) -> float:
         min_control_lrt = torch.min(self.control_lrts)
         mean_control_lrt = torch.mean(self.control_lrts)
@@ -60,7 +60,7 @@ class Attacker():
         return final_victim
 
     #################################################################################################
-    # Update Beacon
+    # Update Attacker
     def update(self, beacon_action, attacker_action):
         beacon_action_tensor = torch.as_tensor(beacon_action, dtype=torch.float32)
         attacker_action_tensor = torch.as_tensor([attacker_action], dtype=torch.long)
@@ -120,7 +120,7 @@ class Attacker():
                 query = None
             return query
 
-        if self.args.attacker_type == "differential_discriminative_power":
+        if self.args.attacker_type == "SF":
             return self.diff_discriminative_queries[current_step]
         
 
@@ -171,9 +171,14 @@ class Attacker():
     #################################################################################################
     # Optimal Attacker
     def _init_optimal_attacker(self):
-        # print("\tInitializing the Optimal Attack Strategy")
         maf_values = self.mafs
-        sorted_gene_indices = torch.argsort(maf_values)  # Sort the MAFs using PyTorch
+
+        maf_mask = torch.logical_or(maf_values >= 0.05, maf_values == 0.001)
+        filtered_indices = torch.argsort(maf_values[maf_mask])
+        sorted_gene_indices = torch.nonzero(maf_mask).squeeze()[filtered_indices]
+    
+        # print("\tInitializing the Optimal Attack Strategy")
+        # sorted_gene_indices = torch.argsort(maf_values)  # Sort the MAFs using PyTorch
         # print("Victim : {}".format(self.victim))
         # print("Victim Sorted Genes: {}".format(sorted_gene_indices))
         
@@ -206,44 +211,19 @@ class Attacker():
     def _init_diff_discriminative_attacker(self, k=5):
         victim_lrts = self._calc_group_lrts_all_snps(self.victim, self.mafs, 1)
         control_lrts = self._calc_group_lrts_all_snps(self.attacker_control, self.mafs, 1)
-        # print("Beacon Case genome: ", self.victim)
-        # print("attacker_control genome: ", self.attacker_control)
-
-        # print("Mafs: ", self.mafs)
-        # print("victim_lrts.size(): ", victim_lrts.size())
-        # print("victim_lrts.size(): ", victim_lrts)
-        # print("control_lrts.size(): ", control_lrts.size())
-        # print("control_lrts.size(): ", control_lrts)
-
 
         discriminative_powers = victim_lrts.mean(dim=0) - control_lrts.mean(dim=0)
-        # print("discriminative_powers.size(): ", discriminative_powers.size())
-        # print("beacon_lrts.mean(dim=0): ",victim_lrts.mean(dim=0))
-        # print("control_lrts.mean(dim=0) ", control_lrts.mean(dim=0))
-        # print("discriminative_powers.size(): ", discriminative_powers)
-
 
         flipped_victim_lrts = self._calc_group_lrts_all_snps(self.victim, self.mafs, 0)
         flipped_control_lrts = self._calc_group_lrts_all_snps(self.attacker_control, self.mafs, 0)
         flipped_discriminative_powers = flipped_victim_lrts.mean(dim=0) - flipped_control_lrts.mean(dim=0)
 
-        # print("flipped_victim_lrts.size(): ", flipped_victim_lrts)
-        # print("flipped_control_lrts.size(): ", flipped_control_lrts)
-        # print("flipped_victim_lrts.mean(dim=0): ", flipped_victim_lrts.mean(dim=0))
-        # print("flipped_control_lrts.mean(dim=0): ", flipped_control_lrts.mean(dim=0))
-        # print("flipped_discriminative_powers: ", flipped_discriminative_powers)
-
-
         delta_discriminative_powers = discriminative_powers - flipped_discriminative_powers
-        # print("delta_discriminative_powers.size(): ", delta_discriminative_powers.size())
-        # print("delta_discriminative_powers.size(): ", delta_discriminative_powers)
 
         sorted_gene_indices = torch.argsort(delta_discriminative_powers, descending=False)
         mask_one = (self.victim[sorted_gene_indices] == 1)  # Get the SNPs with value 1
         mask_zero = (self.victim[sorted_gene_indices] == 0)  # Get the SNPs with value 0
-        
-        # Use torch.cat to concatenate the indices
         queries = torch.cat((sorted_gene_indices[mask_one], sorted_gene_indices[mask_zero]))#[:self.args.max_queries]
-        # print("top_k_indices: ", top_k_indices)
+        print("Attacker Queries: ", sorted_gene_indices)
         return queries
 

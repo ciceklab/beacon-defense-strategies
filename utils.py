@@ -530,15 +530,16 @@ def scatter_plot(y_data, size_data, labels, title, ylabel):
     plt.show()
 
 
+
 def line_and_bar_plot(line_data, bar_data, labels, title, ylabel_line, ylabel_bar):
     fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, gridspec_kw={'height_ratios': [3, 1]})
     
-    color_palette = ["black", "tomato", "blue", "cyan", "orange"]
+    color_palette = ["#2E2E2E", "#E74C3C", "#3498DB", "#1ABC9C", "#E67E22", "#F1C40F"]
     x_ticks = ['100', '200', '300', '400', '500', '600', '700', '800', '900', '1000']
     classes, stages = line_data.shape
     
     x_positions = np.arange(stages)
-    bar_width = 0.1  # Bar width for the bar plot
+    bar_width = 0.15  # Adjusted Bar width for better clarity
     
     # Plotting the line data
     for class_idx in range(classes):
@@ -547,7 +548,7 @@ def line_and_bar_plot(line_data, bar_data, labels, title, ylabel_line, ylabel_ba
         line_color = color_palette[class_idx]
         
         # Plotting the line with markers
-        ax1.plot(x_positions, class_data, marker='o', color=line_color, markeredgewidth=5, markeredgecolor=edge_color, linewidth=8)
+        ax1.plot(x_positions, class_data, marker='o', color=line_color, markeredgewidth=5, markeredgecolor=edge_color, linewidth=8, alpha=0.8)
 
     ax1.set_ylabel(ylabel_line)
     ax1.set_title(title)
@@ -558,7 +559,7 @@ def line_and_bar_plot(line_data, bar_data, labels, title, ylabel_line, ylabel_ba
     ax1.grid(True, linestyle='--', color='gray', alpha=0.5)
     
     # Adding legend for line plot
-    handles = [mpatches.Patch(color=color_palette[i], label=labels[i], edgecolor='black') for i in range(classes)]
+    handles = [mpatches.Patch(color=color_palette[i], label=labels[i], edgecolor='black', alpha=0.8) for i in range(classes)]
     ax1.legend(handles, labels, loc="lower left")
     
     # Plotting the bar data on the lower axis
@@ -567,7 +568,17 @@ def line_and_bar_plot(line_data, bar_data, labels, title, ylabel_line, ylabel_ba
         bar_color = color_palette[class_idx]
         
         # Offset the bar positions to avoid overlap
-        ax2.bar(x_positions + (class_idx - classes / 2) * bar_width, bar_vals, width=bar_width, color=bar_color, alpha=0.6)
+        bars = ax2.bar(x_positions + (class_idx - classes / 2) * bar_width, bar_vals + 0.5, width=bar_width, color=bar_color, alpha=0.8)
+        
+        # Annotate bars with their values
+        for bar in bars:
+            height = bar.get_height()
+            ax2.annotate(f'{height-0.5:.1f}',  # format the label
+                         xy=(bar.get_x() + bar.get_width() / 2, height),  # set the label position
+                         xytext=(0, 3),  # 3 points vertical offset
+                         textcoords="offset points",
+                         ha='center', va='bottom',
+                         fontsize=20)
 
     # Set ylabel for bar plot
     ax2.set_ylabel(ylabel_bar)

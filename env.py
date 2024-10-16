@@ -257,7 +257,7 @@ class Env():
         # print("-------------------------")
 
         # Just for test 
-        # beacon_control = attack_control
+        beacon_control = attack_control
         # print(beacon_case)
         mafs = torch.Tensor(self.maf[:self.args.gene_size])
         nsnp_msk = (mafs == 0)
