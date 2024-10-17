@@ -100,7 +100,7 @@ class Env():
     def step(self, beacon_agent=None, attacker_agent=None):
         # print("Query Number: {}".format(self.current_step))
         done = False
-        if self.current_step % 100 ==0:
+        if self.current_step % 2 == 0:
             print(f"--------------------------------Query: {self.current_step+1}---------------------------------")
 
         ################# Take the actions
@@ -145,8 +145,9 @@ class Env():
 
         ################# Save the Actions
         # beacon_action = torch.clamp(torch.as_tensor(beacon_action), min=0, max=1)
-        if self.current_step % 100 ==0:
+        if self.current_step % 2 == 0:
         # print("--------------------------------Actions---------------------------------")
+            print("Agent Agtion: {}".format(agent_action))
             print("Attacker Action: Position {} with MAF: {} and SNP: {} and LRT: {}".format(attacker_action, self.maf[attacker_action], self.victim[attacker_action], lrt(number_of_people=self.args.beacon_size, genome=self.victim[attacker_action], maf=self.maf[attacker_action], response=beacon_action)))
             print("Beacon Action: {}".format(beacon_action))
             print("Beacon State: {}".format(beacon_state))
@@ -157,7 +158,7 @@ class Env():
         ########## Update the states
         self.beacon.update(beacon_action=beacon_action, attacker_action=attacker_action)
         self.attacker.update(beacon_action=beacon_action, attacker_action=attacker_action)
-        if self.current_step % 100 ==0:
+        if self.current_step % 2 == 0:
 
             print("Beacon Min LRT: ", torch.min(self.beacon.beacon_lrts))
             print("Beacon Mean LRT: ", torch.mean(self.beacon.beacon_lrts))

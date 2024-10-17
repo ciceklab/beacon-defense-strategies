@@ -119,7 +119,7 @@ from engine import train_beacon, train_attacker, train_both, train_TD_beacon
 
 args = args_create()
 def main():
-    env = Env(args, beacon, maf_values, binary)
+    env = Env(args, maf_values, binary)
     
     if args.train == "beacon":
         ################ PPO hyperparameters ################
@@ -150,8 +150,8 @@ def main():
             
             
     elif args.train == "attacker":
-        attacker_state_dim = 3002
-        attacker_action_dim = 1000
+        attacker_state_dim = 9
+        attacker_action_dim = 6
 
         ################ PPO hyperparameters ################
         K_epochs = 300         # update policy for K epochs
