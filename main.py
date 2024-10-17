@@ -119,7 +119,7 @@ from engine import train_beacon, train_attacker, train_both, train_TD_beacon
 
 args = args_create()
 def main():
-    env = Env(args, beacon, maf_values, binary)
+    env = Env(args, maf_values, binary)
     
     if args.train == "beacon":
         ################ PPO hyperparameters ################

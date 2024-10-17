@@ -44,18 +44,41 @@ class Attacker():
         self.control_lrts = torch.zeros(size=(self.args.a_control_size,))
         self.victim_lrt = torch.as_tensor(0)
 
+    
+    def __get_categorical(self, maf_values):
+        maf_categories = torch.zeros((6), device=self.beacon_actions.device)
+        
+        for maf_values in maf_values:
+            if maf_values < .03:
+                maf_categories[0] += 1
+            elif maf_values < 0.1:
+                maf_categories[1] += 1
+            elif maf_values < 0.2:
+                maf_categories[2] += 1
+            elif maf_values < 0.3:
+                maf_categories[3] += 1
+            elif maf_values < 0.4:
+                maf_categories[4] += 1
+            else:
+                maf_categories[5] += 1
+                
+        return maf_categories
 
     #################################################################################################
     # Get Attacker state
     def get_state(self) -> float:
         min_control_lrt = torch.min(self.control_lrts)
         mean_control_lrt = torch.mean(self.control_lrts)
-        multiplied_values = self.victim[self.agent_queries] * self.mafs[self.agent_queries]
+        # multiplied_values = self.victim[self.agent_queries] * self.mafs[self.agent_queries]
+        victim_mafs = self.victim * self.mafs
+        maf_categories_count = self.__get_categorical(victim_mafs)
+        
         final_victim = torch.cat((
-            multiplied_values.flatten(),
-            min_control_lrt.unsqueeze(0), 
-            mean_control_lrt.unsqueeze(0)
-        ))
+            self.victim_lrt.unsqueeze(0),
+            min_control_lrt.unsqueeze(0),
+            mean_control_lrt.unsqueeze(0),
+            maf_categories_count
+        ), dim=0)
 
         return final_victim
 
@@ -72,6 +95,9 @@ class Attacker():
         maf = self.mafs[self.attacker_actions]
         self.victim_lrt =  self._calc_group_lrts(self.victim[self.attacker_actions], maf, self.beacon_actions, self.victim_lrt, True)
         self.control_lrts = self._calc_group_lrts(self.attacker_control[:, self.attacker_actions], maf, self.beacon_actions, self.control_lrts )
+        
+        # Removing the previously used SNP from the victim
+        self.victim[self.attacker_actions] = 0
 
 
     #################################################################################################
@@ -103,8 +129,10 @@ class Attacker():
         if self.args.attacker_type == "optimal":
             return self.optimal_queries[current_step]
 
+        # TODO: Change and check this. The attacker should be able to query ever region.
         if self.args.attacker_type == "agent":
-            return self.agent_queries[agent_action]
+            # return self.agent_queries[agent_action]
+            return agent_action # it can query everywhere
         
         # if self.args.attacker_type == "random":
         #     return torch.randint(0, self.args.gene_size, (1,)).item()
