@@ -10,6 +10,29 @@ import torch
 from utils import calculate_ind_lrt
 
 class Attacker():
+    def __get_maf_category(self, maf) -> int:
+        if maf < .03:
+            return 0
+        elif maf < 0.1:
+            return 1
+        elif maf < 0.2:
+            return 2
+        elif maf < 0.3:
+            return 3
+        elif maf < 0.4:
+            return 4
+        else:
+            return 5
+
+    def __get_categorical_count(self, maf_values):
+        maf_categories = torch.zeros((6), device=self.beacon_actions.device)
+
+        for maf_value in maf_values:
+            maf_categories[self.__get_maf_category(maf_value)] += 1
+
+        return maf_categories
+
+
     def __init__(self, args, victim, control, mafs):
         self.args = args
         self.mafs = mafs
@@ -44,25 +67,10 @@ class Attacker():
         self.control_lrts = torch.zeros(size=(self.args.a_control_size,))
         self.victim_lrt = torch.as_tensor(0)
 
-    
-    def __get_categorical(self, maf_values):
-        maf_categories = torch.zeros((6), device=self.beacon_actions.device)
-        
-        for maf_values in maf_values:
-            if maf_values < .03:
-                maf_categories[0] += 1
-            elif maf_values < 0.1:
-                maf_categories[1] += 1
-            elif maf_values < 0.2:
-                maf_categories[2] += 1
-            elif maf_values < 0.3:
-                maf_categories[3] += 1
-            elif maf_values < 0.4:
-                maf_categories[4] += 1
-            else:
-                maf_categories[5] += 1
-                
-        return maf_categories
+        #
+        victim_mafs = self.victim * self.mafs
+        self.maf_categories_count = self.__get_categorical_count(victim_mafs)
+
 
     #################################################################################################
     # Get Attacker state
@@ -70,14 +78,12 @@ class Attacker():
         min_control_lrt = torch.min(self.control_lrts)
         mean_control_lrt = torch.mean(self.control_lrts)
         # multiplied_values = self.victim[self.agent_queries] * self.mafs[self.agent_queries]
-        victim_mafs = self.victim * self.mafs
-        maf_categories_count = self.__get_categorical(victim_mafs)
         
         final_victim = torch.cat((
             self.victim_lrt.unsqueeze(0),
             min_control_lrt.unsqueeze(0),
             mean_control_lrt.unsqueeze(0),
-            maf_categories_count
+            self.maf_categories_count
         ), dim=0)
 
         return final_victim
@@ -97,7 +103,9 @@ class Attacker():
         self.control_lrts = self._calc_group_lrts(self.attacker_control[:, self.attacker_actions], maf, self.beacon_actions, self.control_lrts )
         
         # Removing the previously used SNP from the victim
-        self.victim[self.attacker_actions] = 0
+        self.victim[attacker_action] = 0
+        self.maf_categories_count[self.__get_maf_category(
+            self.mafs[attacker_action])] -= 1
 
 
     #################################################################################################
@@ -129,10 +137,13 @@ class Attacker():
         if self.args.attacker_type == "optimal":
             return self.optimal_queries[current_step]
 
-        # TODO: Change and check this. The attacker should be able to query ever region.
         if self.args.attacker_type == "agent":
-            # return self.agent_queries[agent_action]
-            return agent_action # it can query everywhere
+            for i in range(self.mafs.size(0)):
+                if self.victim[i] and self.__get_maf_category(self.mafs[i]) == agent_action:
+                    return i
+
+            raise ValueError(
+                f"Something went wrong with the agent_action. agent_action={agent_action}")
         
         # if self.args.attacker_type == "random":
         #     return torch.randint(0, self.args.gene_size, (1,)).item()
