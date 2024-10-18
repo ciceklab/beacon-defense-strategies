@@ -4,35 +4,13 @@ import os
 import csv
 import math
 import random
+import bisect
 
 import torch
 
-from utils import calculate_ind_lrt
+from utils import calculate_ind_lrt, lrt
 
 class Attacker():
-    def __get_maf_category(self, maf) -> int:
-        if maf < .03:
-            return 0
-        elif maf < 0.1:
-            return 1
-        elif maf < 0.2:
-            return 2
-        elif maf < 0.3:
-            return 3
-        elif maf < 0.4:
-            return 4
-        else:
-            return 5
-
-    def __get_categorical_count(self, maf_values):
-        maf_categories = torch.zeros((6), device=self.beacon_actions.device)
-
-        for maf_value in maf_values:
-            maf_categories[self.__get_maf_category(maf_value)] += 1
-
-        return maf_categories
-
-
     def __init__(self, args, victim, control, mafs):
         self.args = args
         self.mafs = mafs
@@ -51,6 +29,10 @@ class Attacker():
         if self.args.attacker_type == "SF":
             self.diff_discriminative_queries = self._init_diff_discriminative_attacker()
 
+
+        if self.args.attacker_type == "agent":
+            self.maf_categories, self.maf_indices = self._init_agent_attacker()
+
         # print("Optimal Attacker", self.optimal_queries)
         # print("diff_discriminative_queries Attacker", self.diff_discriminative_queries)
 
@@ -60,16 +42,9 @@ class Attacker():
             self.risky_queries = sorted_gene_indices[:K].tolist()
             self.non_risky_queries = sorted_gene_indices[K:].tolist()
 
-        # if self.args.attacker_type == "agent":
-        self.agent_queries = self._init_agent_attacker()
-
         ######################## Initializing the control LRTS
         self.control_lrts = torch.zeros(size=(self.args.a_control_size,))
         self.victim_lrt = torch.as_tensor(0)
-
-        #
-        victim_mafs = self.victim * self.mafs
-        self.maf_categories_count = self.__get_categorical_count(victim_mafs)
 
 
     #################################################################################################
@@ -77,13 +52,13 @@ class Attacker():
     def get_state(self) -> float:
         min_control_lrt = torch.min(self.control_lrts)
         mean_control_lrt = torch.mean(self.control_lrts)
-        # multiplied_values = self.victim[self.agent_queries] * self.mafs[self.agent_queries]
-        
+
         final_victim = torch.cat((
+            self.maf_categories.flatten(),
             self.victim_lrt.unsqueeze(0),
             min_control_lrt.unsqueeze(0),
             mean_control_lrt.unsqueeze(0),
-            self.maf_categories_count
+            self._calc_pvalue().unsqueeze(0)
         ), dim=0)
 
         return final_victim
@@ -103,9 +78,11 @@ class Attacker():
         self.control_lrts = self._calc_group_lrts(self.attacker_control[:, self.attacker_actions], maf, self.beacon_actions, self.control_lrts )
         
         # Removing the previously used SNP from the victim
-        self.victim[attacker_action] = 0
-        self.maf_categories_count[self.__get_maf_category(
-            self.mafs[attacker_action])] -= 1
+        # self.victim[attacker_action] = 0
+
+        if self.args.attacker_type == "agent":
+            self.maf_categories[self._get_maf_category(
+                self.mafs[attacker_action]), 0] -= 1
 
 
     #################################################################################################
@@ -138,18 +115,26 @@ class Attacker():
             return self.optimal_queries[current_step]
 
         if self.args.attacker_type == "agent":
-            for i in range(self.mafs.size(0)):
-                if self.victim[i] and self.__get_maf_category(self.mafs[i]) == agent_action:
-                    return i
 
-            raise ValueError(
-                f"Something went wrong with the agent_action. agent_action={agent_action}")
-        
-        # if self.args.attacker_type == "random":
-        #     return torch.randint(0, self.args.gene_size, (1,)).item()
+            if agent_action < 0 or agent_action >= len(self.maf_indices):
+                raise ValueError(f"Invalid group number: {agent_action}. Must be between 0 and {len(self.maf_indices) - 1}.")
+
+            if len(self.maf_indices[agent_action]) == 0:
+                print(f"No indices left in group {agent_action} to sample.")
+                agent_action = -1
+                while len(self.maf_indices[agent_action]) == 0:
+                    print(f"No indices left in group {agent_action} to sample.")
+                    agent_action -= 1
+
+                # raise ValueError(f"No indices left in group {agent_action} to sample.")
+            
+            sampled_index = random.choice(self.maf_indices[agent_action])
+            self.maf_indices[agent_action].remove(sampled_index)
+            return sampled_index
+    
 
         if self.args.attacker_type == "random":
-            if random.random() < self.risk_level and self.risky_queries:
+            if random.random() < 0.3 and self.risky_queries:
                 query = random.choice(self.risky_queries)
                 self.risky_queries.remove(query)
             elif self.non_risky_queries:
@@ -231,21 +216,21 @@ class Attacker():
         return queries
     
 
-    def _init_agent_attacker(self):
-        # print("\tInitializing the Optimal Attack Strategy")
-        maf_values = self.mafs
-        sorted_gene_indices = torch.argsort(maf_values)  # Sort the MAFs using PyTorch
-        # print("Victim : {}".format(self.victim))
-        # print("Victim Sorted Genes: {}".format(sorted_gene_indices))
+    # def _init_agent_attacker(self):
+    #     # print("\tInitializing the Optimal Attack Strategy")
+    #     maf_values = self.mafs
+    #     sorted_gene_indices = torch.argsort(maf_values)  # Sort the MAFs using PyTorch
+    #     # print("Victim : {}".format(self.victim))
+    #     # print("Victim Sorted Genes: {}".format(sorted_gene_indices))
         
-        mask_one = sorted_gene_indices[(self.victim[sorted_gene_indices] == 1)][:1000:2] # Get the SNPs with value 1
-        mask_zero = sorted_gene_indices[(self.victim[sorted_gene_indices] == 0)][:1000:2]  # Get the SNPs with value 0
+    #     mask_one = sorted_gene_indices[(self.victim[sorted_gene_indices] == 1)][:1000:2] # Get the SNPs with value 1
+    #     mask_zero = sorted_gene_indices[(self.victim[sorted_gene_indices] == 0)][:1000:2]  # Get the SNPs with value 0
         
-        # Use torch.cat to concatenate the indices
-        queries = torch.cat((mask_one, mask_zero))
-        # print(queries.size())
-        # print(f"\tAttacker Queries: {queries}")
-        return queries
+    #     # Use torch.cat to concatenate the indices
+    #     queries = torch.cat((mask_one, mask_zero))
+    #     # print(queries.size())
+    #     # print(f"\tAttacker Queries: {queries}")
+    #     return queries
 
     def _init_diff_discriminative_attacker(self, k=5):
         victim_lrts = self._calc_group_lrts_all_snps(self.victim, self.mafs, 1)
@@ -265,4 +250,75 @@ class Attacker():
         queries = torch.cat((sorted_gene_indices[mask_one], sorted_gene_indices[mask_zero]))#[:self.args.max_queries]
         print("Attacker Queries: ", sorted_gene_indices)
         return queries
+
+
+    def _get_maf_category(self, maf_value):
+        for i in range(len(self.maf_thresholds) - 1):
+            if self.maf_thresholds[i] <= maf_value < self.maf_thresholds[i + 1]:
+                return i
+        return len(self.maf_thresholds) - 1 
+
+
+    def _init_agent_attacker(self):
+        num_groups = 99 
+        
+        maf_values_victim = self.mafs * self.victim
+        maf_values_victim = maf_values_victim[maf_values_victim != 0]
+        
+        self.maf_thresholds, group_counts = self._divide_mafs(maf_values_victim, num_groups)
+        print(f"Divided MAFs into {num_groups} groups with: \n\tThresholds: {self.maf_thresholds} \n\tGroup Counts: {group_counts}")
+
+
+        maf_categories = torch.zeros((num_groups + 1, 5), device=self.beacon_actions.device)
+        maf_indices = [[] for _ in range(num_groups + 1)]
+        victim_mask = self.victim == 1
+
+        for idx, maf_value in enumerate(self.mafs):
+            if victim_mask[idx]:  
+                category = self._get_maf_category(maf_value)
+                maf_categories[category, 0] += 1
+                maf_indices[category].append(idx)
+            else:
+                maf_categories[-1, 0] += 1
+                maf_indices[-1].append(idx)
+
+        for i, maf_list in enumerate(maf_indices):
+            if len(maf_list) > 0:
+                maf_tensor = torch.tensor(self.mafs[maf_list])
+                min_maf, max_maf = torch.min(maf_tensor), torch.max(maf_tensor)
+                # print(min_maf, max_maf)
+
+                lrt_min_1 = lrt(self.args.a_control_size, 1, min_maf, torch.tensor(1))
+                lrt_max_1 = lrt(self.args.a_control_size, 1, max_maf, torch.tensor(1))
+
+                lrt_min_0 = lrt(self.args.a_control_size, 1, min_maf, torch.tensor(0))
+                lrt_max_0 = lrt(self.args.a_control_size, 1, max_maf, torch.tensor(0))
+
+                maf_categories[i, 1] = lrt_min_1
+                maf_categories[i, 2] = lrt_max_1
+                maf_categories[i, 3] = lrt_min_0
+                maf_categories[i, 4] = lrt_max_0
+        # print(maf_categories)
+        return maf_categories, maf_indices
+    
+    def _divide_mafs(self, numbers, num_groups):
+        sorted_numbers = torch.sort(numbers).values
+
+        n = len(sorted_numbers)
+        split_indices = [int(n * i / num_groups) for i in range(1, num_groups)]
+        group_boundaries = [sorted_numbers[0].item()] + [sorted_numbers[idx].item() for idx in split_indices] + [sorted_numbers[-1].item()]
+        group_boundaries = [round(bound, 3) if bound > 1e-6 else 0.0 for bound in group_boundaries]
+        group_counts = []
+        
+        for i in range(num_groups):
+            if i == 0:
+                count = torch.sum(numbers < group_boundaries[i+1]).item()
+            elif i == num_groups - 1:
+                count = torch.sum(numbers >= group_boundaries[i]).item()
+            else:
+                count = torch.sum((numbers >= group_boundaries[i]) & (numbers < group_boundaries[i+1])).item()
+            
+            group_counts.append(count)
+        
+        return group_boundaries, group_counts
 

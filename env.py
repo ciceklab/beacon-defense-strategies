@@ -13,8 +13,11 @@ import torch
 
 class Env():
     def __init__(self, args, maf, binary):
-        # self.attackers=["optimal", "optimal", "random"]
-        # args.attacker_type = random.choice(self.attackers)
+        self.attackers=["optimal", "SF", "random"]
+        args.attacker_type = random.choice(self.attackers)
+
+        # self.beacons=["baseline", "random", "truth", "qbudget", "strategic"]
+        # args.beacon_type = random.choice(self.beacons)
 
         # self.beacon_people=beacon
         self.maf=maf
@@ -33,6 +36,7 @@ class Env():
         self.episode = 0
         print("==================================⬇️⬇️⬇️⬇️Episode: {}⬇️⬇️⬇️⬇️==============================".format(self.episode+1))
         print("ATTACKER TYPE: ", self.args.attacker_type)
+        print("BEACON TYPE: ", self.args.beacon_type)
 
 
         # Randomly set populations and genes
@@ -68,7 +72,8 @@ class Env():
     def reset(self) -> torch.Tensor:
         self.episode += 1
 
-        # self.args.attacker_type = random.choice(self.attackers)
+        self.args.attacker_type = random.choice(self.attackers)
+        # self.args.beacon_type = random.choice(self.beacons)
 
 
         self.beacon_prewards = []
@@ -84,6 +89,7 @@ class Env():
 
         print("==================================⬇️⬇️⬇️⬇️Episode: {}⬇️⬇️⬇️⬇️==============================".format(self.episode+1))
         print("ATTACKER TYPE: ", self.args.attacker_type)
+        print("BEACON TYPE: ", self.args.beacon_type)
 
         # print("Reseting the Populations")
         # Randomly set populations and genes
@@ -100,7 +106,7 @@ class Env():
     def step(self, beacon_agent=None, attacker_agent=None):
         # print("Query Number: {}".format(self.current_step))
         done = False
-        if self.current_step % 2 == 0:
+        if self.current_step % self.args.print_freq == 0:
             print(f"--------------------------------Query: {self.current_step+1}---------------------------------")
 
         ################# Take the actions
@@ -113,7 +119,7 @@ class Env():
             # print("Attacker Action: {}, {}".format(attacker_action, agent_action))
             self.attacker_agent_actions.append(agent_action)
         else:
-            attacker_state = self.attacker.get_state()
+            # attacker_state = self.attacker.get_state()
             attacker_action = self.attacker.act(self.current_step) 
             self.attacker_agent_actions.append(attacker_action)
         
@@ -124,7 +130,7 @@ class Env():
                     beacon_action = beacon_agent.select_action(beacon_state, True) 
                 else :
                     beacon_action = beacon_agent.select_action(beacon_state, False) 
-                    beacon_action = torch.Tensor(beacon_action)
+                    beacon_action = torch.Tensor(beacon_action).squeeze()
         
             elif self.args.beacon_agent == "ppo":
                     beacon_action = beacon_agent.select_action(beacon_state)
@@ -145,9 +151,9 @@ class Env():
 
         ################# Save the Actions
         # beacon_action = torch.clamp(torch.as_tensor(beacon_action), min=0, max=1)
-        if self.current_step % 2 == 0:
+        if self.current_step % self.args.print_freq == 0:
         # print("--------------------------------Actions---------------------------------")
-            print("Agent Agtion: {}".format(agent_action))
+            # print("Agent Agtion: {}".format(agent_action))
             print("Attacker Action: Position {} with MAF: {} and SNP: {} and LRT: {}".format(attacker_action, self.maf[attacker_action], self.victim[attacker_action], lrt(number_of_people=self.args.beacon_size, genome=self.victim[attacker_action], maf=self.maf[attacker_action], response=beacon_action)))
             print("Beacon Action: {}".format(beacon_action))
             print("Beacon State: {}".format(beacon_state))
@@ -158,7 +164,7 @@ class Env():
         ########## Update the states
         self.beacon.update(beacon_action=beacon_action, attacker_action=attacker_action)
         self.attacker.update(beacon_action=beacon_action, attacker_action=attacker_action)
-        if self.current_step % 2 == 0:
+        if self.current_step % self.args.print_freq == 0:
 
             print("Beacon Min LRT: ", torch.min(self.beacon.beacon_lrts))
             print("Beacon Mean LRT: ", torch.mean(self.beacon.beacon_lrts))
@@ -173,11 +179,6 @@ class Env():
         attacker_reward, attacker_done, attacker_rewards = self.attacker.calc_reward(beacon_action, self.current_step)
 
         # print("Beacon utility reward: {}  privacy reward: {}".format(beacon_rewards[1], beacon_rewards[0]))
-        
-        # For repeatitive queries
-        if attacker_action in self.attacker_actions:
-            attacker_reward -= 5
-
 
         # self.beacon_prewards.append(beacon_rewards[0])
         # self.beacon_urewards.append(beacon_rewards[1])

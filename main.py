@@ -6,6 +6,7 @@ import os
 import random
 import torch
 
+
 def reproducibility(seed: int):
     os.environ['PYTHONHASHSEED'] = str(seed)
     torch.manual_seed(seed)
@@ -19,6 +20,7 @@ def reproducibility(seed: int):
         torch.cuda.manual_seed(seed)
 reproducibility(3)
 
+
 # set device to cpu or cuda
 device = torch.device('cpu')
 
@@ -29,6 +31,8 @@ if(torch.cuda.is_available()):
 else:
     print("Device set to : cpu")
 
+
+
 def args_create():
     # @title Arguments
     parser = argparse.ArgumentParser(description='Actor Critic')
@@ -36,14 +40,14 @@ def args_create():
 
     # Environment Setup
     parser.add_argument('--data', default="/mnt/kerem/CEU", type=str, help='Dataset Path')
-    parser.add_argument('--episodes', default=10000, type=int, metavar='N', help='Number of episodes for training agent.')
+    parser.add_argument('--episodes', default=100000, type=int, metavar='N', help='Number of episodes for training agent.')
     parser.add_argument('--seed', default=3, type=int, help='Seed for reproducibility')
     parser.add_argument('--a_control_size', default=50, type=int, help='Attack Control group size')
     parser.add_argument('--b_control_size', default=50, type=int, help='Beacon Control group size')
     parser.add_argument('--gene_size', default=100000, type=int, help='States gene size')
     parser.add_argument('--beacon_size', default=10, type=int, help='Beacon population size')
     parser.add_argument('--victim_prob', default=1, type=float, help='Victim inside beacon or not!')
-    parser.add_argument('--max_queries', default=100, type=int, help='Maximum queries per episode')
+    parser.add_argument('--max_queries', default=50, type=int, help='Maximum queries per episode')
     parser.add_argument('--evaluate', default=False, type=bool, help='Evaluation or Not')
 
 
@@ -58,6 +62,8 @@ def args_create():
     parser.add_argument('--pop_reset_freq', default=100000000, type=int, help='Reset Population Frequency (Epochs)')
     parser.add_argument('--update_freq', default=10, type=int, help='Train Agent model frequency')
     parser.add_argument('--plot-freq', default=10, type=int, metavar='N', help='Plot Frequencies')
+    parser.add_argument('--print-freq', default=10, type=int, metavar='N', help='Plot Frequencies')
+
 
     parser.add_argument('--resume-attacker', default=None, type=str, metavar='PATH', help='path to latest checkpoint (default: none)')
     parser.add_argument('--resume-beacon', default=None, type=str, metavar='PATH', help='path to latest checkpoint (default: none)')
@@ -83,17 +89,26 @@ def args_create():
     return args
 
 
+import os
+import joblib
 
-print("Reading Data ...")
-# args = args_create()   
-# 
+# Cache file path
+cache_path = "/data6/sobhan/Beacons/dataset/binary_cache.joblib"
 
-# CEU Beacon - it contains 164 people in total which we will divide into groups to experiment
-beacon = pd.read_csv(os.path.join("/mnt/kerem/CEU", "Beacon_164.txt"), index_col=0, delim_whitespace=True)
-# Reference genome, i.e. the genome that has no SNPs, all major allele pairs for each position
-reference = pickle.load(open(os.path.join("/mnt/kerem/CEU", "reference.pickle"),"rb"))
-# Binary representation of the beacon; 0: no SNP (i.e. no mutation) 1: SNP (i.e. mutation)
-binary = np.logical_and(beacon.values != reference, beacon.values != "NN").astype(int)
+# Check if the cached file exists
+if os.path.exists(cache_path):
+    print("Exists")
+    # Load from cache
+    binary = joblib.load(cache_path)
+else:
+    # If cache doesn't exist, process and save to cache
+    beacon = pd.read_csv(os.path.join("/mnt/kerem/CEU", "Beacon_164.txt"), index_col=0, delim_whitespace=True)
+    reference = pickle.load(open(os.path.join("/mnt/kerem/CEU", "reference.pickle"), "rb"))
+    binary = np.logical_and(beacon.values != reference, beacon.values != "NN").astype(int)
+    
+    # Save the processed binary data to cache for future use
+    joblib.dump(binary, cache_path)
+
 
 # Table that contains MAF (minor allele frequency) values for each position. 
 maf = pd.read_csv(os.path.join("/mnt/kerem/CEU", "MAF.txt"), index_col=0, delim_whitespace=True)
@@ -107,8 +122,6 @@ maf_values = maf["maf"].values
 
 binary = binary.T
 binary.shape #(164, 4029840)
-
-print("Start Training...")
 
 import sys
 from env import Env
@@ -150,8 +163,8 @@ def main():
             
             
     elif args.train == "attacker":
-        attacker_state_dim = 9
-        attacker_action_dim = 6
+        attacker_state_dim = 504
+        attacker_action_dim = 100
 
         ################ PPO hyperparameters ################
         K_epochs = 300         # update policy for K epochs
