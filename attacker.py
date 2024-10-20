@@ -126,7 +126,8 @@ class Attacker():
             category = agent_action % 6
 
             if category < 0 or category >= len(self.maf_categories):
-                raise ValueError(f"Invalid group number: {category}. Must be between 0 and {len(self.maf_categories) - 1}.")
+                raise ValueError(f"Invalid group number: {category}. Must be between 0 and {
+                                 len(self.maf_categories) - 1}.")
 
             # this logic is a bit buggy, but we will not face the bug
             while self.maf_categories[category] == 0:
@@ -135,12 +136,17 @@ class Attacker():
 
             start = time.time()
             start_ind = self.maf_helper.cat_start_ind[category]
-            for i in range(start_ind, len(self.mafs)):
+            indices, = torch.nonzero(
+                (1 - presence - self.victim) * self.mafs, as_tuple=True)
+            # for i in range(start_ind, len(self.mafs)):
+            for i in indices:
+                if i < start_ind:
+                    continue
+
                 ith_snp_group = self.categorized_maf[i]
-                in_victim_presence = self.victim[i]
 
                 # This function should and will terminate here.
-                if ith_snp_group == category and in_victim_presence == presence:
+                if ith_snp_group == category:
                     end = time.time()
                     print(f"elpased time: {end - start}")
                     return i
@@ -198,7 +204,6 @@ class Attacker():
         updated_beacon_lrts = prev_beacon_lrts + lrt
 
         return updated_beacon_lrts
-    
 
     def _calc_pvalue(self):
         victim_lrt = copy.deepcopy(self.victim_lrt)
@@ -236,7 +241,6 @@ class Attacker():
 
         # print(f"\tAttacker Queries: {queries}")
         return queries
-    
 
     # def _init_agent_attacker(self):
     #     # print("\tInitializing the Optimal Attack Strategy")
@@ -292,7 +296,7 @@ class Attacker():
     def _init_agent_attacker(self):
         _, category_coutns = torch.unique_consecutive(
             self.categorized_maf[self.victim.to(torch.bool)], return_counts=True)
-        
+
         return category_coutns
 
     def _divide_mafs(self, numbers, num_groups):
