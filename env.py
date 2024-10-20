@@ -15,26 +15,24 @@ from helpers.maf_tools import MAFHelper
 
 class Env():
     def __init__(self, args, maf, binary):
-        self.attackers=["optimal", "SF", "random"]
-        args.attacker_type = random.choice(self.attackers)
+        # self.attackers=["optimal", "SF", "random"]
+        # args.attacker_type = random.choice(self.attackers)
 
         # self.beacons=["baseline", "random", "truth", "qbudget", "strategic"]
         # args.beacon_type = random.choice(self.beacons)
 
         # self.beacon_people=beacon
-        self.maf=maf
-        self.args=copy.copy(args)
+        self.maf = maf[:args.gene_size]
+        self.binary = binary[:, :args.gene_size]
+        self.args = copy.copy(args)
         self.categorized_maf = None
 
         # TODO: make this logic clean
         if self.args.attacker_type == "agent":
-            num_groups = 99
             # represent the people in a sorted manner.
-            self.binary = binary[:, torch.argsort(maf)]
-            self.maf_helper = MAFHelper(mafs, num_groups)
-        else:
-            self.binary = binary
-            self.maf_helper = MAFHelper(mafs)
+            sorted_args = np.argsort(self.maf)
+            self.maf = self.maf[sorted_args]
+            self.binary = self.binary[:, sorted_args]
 
         ############################LOG
 
@@ -53,6 +51,13 @@ class Env():
 
         # Randomly set populations and genes
         beacon_case, beacon_control, attack_control, self.victim, self.victim_id, mafs = self.get_populations()
+
+        # TODO: make this logic clean
+        if self.args.attacker_type == "agent":
+            num_groups = 99
+            self.maf_helper = MAFHelper(mafs, num_groups)
+        else:
+            self.maf_helper = MAFHelper(mafs)
 
         # Initialize the agents
         self.beacon = Beacon(self.args, beacon_case, beacon_control, mafs, self.victim_id)
@@ -85,7 +90,7 @@ class Env():
     def reset(self) -> torch.Tensor:
         self.episode += 1
 
-        self.args.attacker_type = random.choice(self.attackers)
+        # self.args.attacker_type = random.choice(self.attackers)
         # self.args.beacon_type = random.choice(self.beacons)
 
 
@@ -244,7 +249,8 @@ class Env():
             raise Exception("Size of the population is too low!")
         
         beacon_size = self.args.beacon_size + 1
-        all_people = self.binary[:, :self.args.gene_size]
+        # all_people = self.binary[:, :self.args.gene_size]
+        all_people = self.binary
 
         # Beacon Case group
         beacon_case = all_people[:beacon_size]
@@ -274,7 +280,7 @@ class Env():
         # Just for test 
         beacon_control = attack_control
         # print(beacon_case)
-        mafs = torch.Tensor(self.maf[:self.args.gene_size])
+        mafs = torch.Tensor(self.maf)
         nsnp_msk = (mafs == 0)
         mafs[nsnp_msk] = torch.as_tensor(0.001)
         return torch.Tensor(beacon_case), torch.Tensor(beacon_control), torch.Tensor(attack_control), torch.Tensor(victim), victim_ind, mafs

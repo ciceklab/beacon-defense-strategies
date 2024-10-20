@@ -93,7 +93,7 @@ import os
 import joblib
 
 # Cache file path
-cache_path = "/data6/sobhan/Beacons/dataset/binary_cache.joblib"
+cache_path = "/data1/masoud/binary_cache.joblib"
 
 # Check if the cached file exists
 if os.path.exists(cache_path):
@@ -163,8 +163,8 @@ def main():
             
             
     elif args.train == "attacker":
-        attacker_state_dim = 504
-        attacker_action_dim = 100
+        attacker_state_dim = 10
+        attacker_action_dim = 12
 
         ################ PPO hyperparameters ################
         K_epochs = 300         # update policy for K epochs
