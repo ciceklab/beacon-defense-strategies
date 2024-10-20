@@ -90,6 +90,7 @@ class Attacker():
         # self.victim[attacker_action] = 0
 
         if self.args.attacker_type == "agent":
+            self.victim[attacker_action] = 0
             self.maf_categories[self.categorized_maf[attacker_action]] -= 1
 
     #################################################################################################
@@ -126,30 +127,28 @@ class Attacker():
             category = agent_action % 6
 
             if category < 0 or category >= len(self.maf_categories):
-                raise ValueError(f"Invalid group number: {category}. Must be between 0 and {
-                                 len(self.maf_categories) - 1}.")
+                raise ValueError(f"Invalid group number: {category}. Must be between 0 and {len(self.maf_categories) - 1}.")
 
             # this logic is a bit buggy, but we will not face the bug
             while self.maf_categories[category] == 0:
                 print(f"No indices left in group {category} to sample.")
                 category -= 1
 
-            start = time.time()
+            # start = time.time()
             start_ind = self.maf_helper.cat_start_ind[category]
             indices, = torch.nonzero(
-                (1 - presence - self.victim) * self.mafs, as_tuple=True)
+                (1 - presence - self.victim[start_ind:]) * self.mafs[start_ind:], as_tuple=True)
             # for i in range(start_ind, len(self.mafs)):
             for i in indices:
-                if i < start_ind:
-                    continue
+                ind = i + start_ind
 
-                ith_snp_group = self.categorized_maf[i]
+                ith_snp_group = self.categorized_maf[ind]
 
                 # This function should and will terminate here.
                 if ith_snp_group == category:
-                    end = time.time()
-                    print(f"elpased time: {end - start}")
-                    return i
+                    # end = time.time()
+                    # print(f"elpased time: {end - start}")
+                    return ind
 
             raise RuntimeError("Something went wrong!")
 
