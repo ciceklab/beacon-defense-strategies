@@ -132,7 +132,7 @@ class Attacker():
             # this logic is a bit buggy, but we will not face the bug
             while self.maf_categories[category] == 0:
                 print(f"No indices left in group {category} to sample.")
-                category -= 1
+                category = (category + 1) % 6
 
             # start = time.time()
             start_ind = self.maf_helper.cat_start_ind[category]
