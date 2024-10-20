@@ -9,13 +9,15 @@ import bisect
 import torch
 
 from utils import calculate_ind_lrt, lrt
+from helpers.maf_tools import MAFHelper
 
 class Attacker():
-    def __init__(self, args, victim, control, mafs):
+    def __init__(self, args, victim, control, maf_helper: MAFHelper):
         self.args = args
-        self.mafs = mafs
+        self.mafs = maf_helper.get_mafs()
         self.victim = victim
         self.attacker_control = control
+        self.maf_helper = maf_helper
         # print("Initializing {} Attacker".format(self.args.attacker_type))
 
 
@@ -31,7 +33,8 @@ class Attacker():
 
 
         if self.args.attacker_type == "agent":
-            self.maf_categories, self.maf_indices = self._init_agent_attacker()
+            self.categorized_maf = maf_helper.get_mafs_categories()
+            self.maf_categories = self._init_agent_attacker()
 
         # print("Optimal Attacker", self.optimal_queries)
         # print("diff_discriminative_queries Attacker", self.diff_discriminative_queries)
@@ -81,8 +84,7 @@ class Attacker():
         # self.victim[attacker_action] = 0
 
         if self.args.attacker_type == "agent":
-            self.maf_categories[self._get_maf_category(
-                self.mafs[attacker_action]), 0] -= 1
+            self.maf_categories[self.categorized_maf[attacker_action], 0] -= 1
 
 
     #################################################################################################
@@ -115,22 +117,26 @@ class Attacker():
             return self.optimal_queries[current_step]
 
         if self.args.attacker_type == "agent":
+            presence = agent_action // 2
+            category = agent_action % 2
 
-            if agent_action < 0 or agent_action >= len(self.maf_indices):
-                raise ValueError(f"Invalid group number: {agent_action}. Must be between 0 and {len(self.maf_indices) - 1}.")
+            if category < 0 or category >= len(self.maf_categories):
+                raise ValueError(f"Invalid group number: {category}. Must be between 0 and {len(self.maf_categories) - 1}.")
 
-            if len(self.maf_indices[agent_action]) == 0:
-                print(f"No indices left in group {agent_action} to sample.")
-                agent_action = -1
-                while len(self.maf_indices[agent_action]) == 0:
-                    print(f"No indices left in group {agent_action} to sample.")
-                    agent_action -= 1
-
-                # raise ValueError(f"No indices left in group {agent_action} to sample.")
+            # this logic is a bit buggy, but we will not face the bug
+            while self.maf_categories[category] == 0:
+                print(f"No indices left in group {category} to sample.")
+                category -= 1
             
-            sampled_index = random.choice(self.maf_indices[agent_action])
-            self.maf_indices[agent_action].remove(sampled_index)
-            return sampled_index
+            for i in range(self.mafs):
+                ith_snp_group = self.categorized_maf[i]
+                in_victim_presence = self.victim[i]
+                
+                # This function should and will terminate here.
+                if ith_snp_group == category and in_victim_presence == presence:
+                    return i
+                
+            raise RuntimeError("Something went wrong!")
     
 
         if self.args.attacker_type == "random":
@@ -260,46 +266,9 @@ class Attacker():
 
 
     def _init_agent_attacker(self):
-        num_groups = 99 
+        _, category_coutns = torch.unique_consecutive(self.mafs[self.victim], return_counts=True)
         
-        maf_values_victim = self.mafs * self.victim
-        maf_values_victim = maf_values_victim[maf_values_victim != 0]
-        
-        self.maf_thresholds, group_counts = self._divide_mafs(maf_values_victim, num_groups)
-        print(f"Divided MAFs into {num_groups} groups with: \n\tThresholds: {self.maf_thresholds} \n\tGroup Counts: {group_counts}")
-
-
-        maf_categories = torch.zeros((num_groups + 1, 5), device=self.beacon_actions.device)
-        maf_indices = [[] for _ in range(num_groups + 1)]
-        victim_mask = self.victim == 1
-
-        for idx, maf_value in enumerate(self.mafs):
-            if victim_mask[idx]:  
-                category = self._get_maf_category(maf_value)
-                maf_categories[category, 0] += 1
-                maf_indices[category].append(idx)
-            else:
-                maf_categories[-1, 0] += 1
-                maf_indices[-1].append(idx)
-
-        for i, maf_list in enumerate(maf_indices):
-            if len(maf_list) > 0:
-                maf_tensor = torch.tensor(self.mafs[maf_list])
-                min_maf, max_maf = torch.min(maf_tensor), torch.max(maf_tensor)
-                # print(min_maf, max_maf)
-
-                lrt_min_1 = lrt(self.args.a_control_size, 1, min_maf, torch.tensor(1))
-                lrt_max_1 = lrt(self.args.a_control_size, 1, max_maf, torch.tensor(1))
-
-                lrt_min_0 = lrt(self.args.a_control_size, 1, min_maf, torch.tensor(0))
-                lrt_max_0 = lrt(self.args.a_control_size, 1, max_maf, torch.tensor(0))
-
-                maf_categories[i, 1] = lrt_min_1
-                maf_categories[i, 2] = lrt_max_1
-                maf_categories[i, 3] = lrt_min_0
-                maf_categories[i, 4] = lrt_max_0
-        # print(maf_categories)
-        return maf_categories, maf_indices
+        return category_coutns
     
     def _divide_mafs(self, numbers, num_groups):
         sorted_numbers = torch.sort(numbers).values

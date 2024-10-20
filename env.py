@@ -11,6 +11,8 @@ from attacker import Attacker
 
 import torch
 
+from helpers.maf_tools import MAFHelper
+
 class Env():
     def __init__(self, args, maf, binary):
         self.attackers=["optimal", "SF", "random"]
@@ -22,7 +24,17 @@ class Env():
         # self.beacon_people=beacon
         self.maf=maf
         self.args=copy.copy(args)
-        self.binary=binary
+        self.categorized_maf = None
+
+        # TODO: make this logic clean
+        if self.args.attacker_type == "agent":
+            num_groups = 99
+            # represent the people in a sorted manner.
+            self.binary = binary[:, torch.argsort(maf)]
+            self.maf_helper = MAFHelper(mafs, num_groups)
+        else:
+            self.binary = binary
+            self.maf_helper = MAFHelper(mafs)
 
         ############################LOG
 
@@ -44,7 +56,8 @@ class Env():
 
         # Initialize the agents
         self.beacon = Beacon(self.args, beacon_case, beacon_control, mafs, self.victim_id)
-        self.attacker = Attacker(self.args, self.victim, attack_control, mafs)
+        self.attacker = Attacker(
+            self.args, self.victim, attack_control, self.maf_helper)
         # print("-------------------------")
 
         self.current_step = 0
@@ -98,7 +111,7 @@ class Env():
         self.current_step = 0
 
         # Reset the agents 
-        self.attacker = Attacker(args=self.args, victim=self.victim, control=attack_control, mafs=mafs)
+        self.attacker = Attacker(args=self.args, victim=self.victim, control=attack_control, maf_helper=self.maf_helper)
         self.beacon = Beacon(self.args, beacon_case, beacon_control, mafs, self.victim_id)
 
 
