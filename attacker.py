@@ -282,8 +282,9 @@ class Attacker():
         return len(self.maf_thresholds) - 1
 
     def _init_agent_attacker(self):
-        _, category_coutns = torch.unique_consecutive(
-            self.categorized_maf[self.victim.to(torch.bool)], return_counts=True)
+        # _, category_coutns = torch.unique_consecutive(
+        #     self.categorized_maf[self.victim.to(torch.bool)], return_counts=True)
+        category_coutns = torch.bincount(self.categorized_maf[self.victim.to(torch.bool)], minlength=6)
 
         return category_coutns
 
