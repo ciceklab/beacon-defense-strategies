@@ -38,7 +38,7 @@ class Beacon():
             self.strategy_positions = self._init_strategic_beaon()
 
         if self.args.beacon_type == "qbudget":
-            p = 0.05
+            p = 0.1
             initial_budget = -torch.log(torch.tensor(p))
             self.budgets = torch.full(size=(self.args.beacon_size,), fill_value=initial_budget)
         
@@ -145,7 +145,7 @@ class Beacon():
             if not has_snp:
                 return 1
             else:
-                if random.random() < 0.7:
+                if random.random() < 0.75:
                     return 1
                 else:
                     return 0
@@ -181,7 +181,7 @@ class Beacon():
             else: 
                 return 1
 
-    def _init_strategic_beaon(self, k=10):
+    def _init_strategic_beaon(self, k=0.05):
         beacon_lrts = self._calc_group_lrts_all_snps(self.beacon_case, self.mafs, 1)
         control_lrts = self._calc_group_lrts_all_snps(self.beacon_control, self.mafs, 1)
         discriminative_powers = beacon_lrts.mean(dim=0) - control_lrts.mean(dim=0)
@@ -195,12 +195,13 @@ class Beacon():
         # num_snps_to_flip = int(len(delta_discriminative_powers) * (k / 100))
         # top_k_indices = torch.topk(delta_discriminative_powers, num_snps_to_flip).indices
         # print("top_k_indices: ", top_k_indices)
-        print("Beacon Queries: ", sorted_gene_indices[:10000])
+        K = int(self.args.gene_size * k)
+        print("Beacon Queries: ", sorted_gene_indices[:K])
 
-        return sorted_gene_indices[:10000]
+        return sorted_gene_indices[:K]
 
 
-    def _init_baseline_beaon(self, k=1):
+    def _init_baseline_beaon(self, k=10):
         un_mafs = torch.unique(torch.as_tensor(self.mafs))
         return un_mafs[1:int(k / 100 * un_mafs.numel())]
 

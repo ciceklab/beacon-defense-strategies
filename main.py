@@ -18,7 +18,7 @@ def reproducibility(seed: int):
         torch.manual_seed(seed)
         torch.cuda.manual_seed_all(seed)
         torch.cuda.manual_seed(seed)
-reproducibility(3)
+reproducibility(5)
 
 
 # set device to cpu or cuda
@@ -40,7 +40,7 @@ def args_create():
 
     # Environment Setup
     parser.add_argument('--data', default="/mnt/kerem/CEU", type=str, help='Dataset Path')
-    parser.add_argument('--episodes', default=100000, type=int, metavar='N', help='Number of episodes for training agent.')
+    parser.add_argument('--episodes', default=20000, type=int, metavar='N', help='Number of episodes for training agent.')
     parser.add_argument('--seed', default=3, type=int, help='Seed for reproducibility')
     parser.add_argument('--a_control_size', default=50, type=int, help='Attack Control group size')
     parser.add_argument('--b_control_size', default=50, type=int, help='Beacon Control group size')
@@ -49,6 +49,10 @@ def args_create():
     parser.add_argument('--victim_prob', default=1, type=float, help='Victim inside beacon or not!')
     parser.add_argument('--max_queries', default=50, type=int, help='Maximum queries per episode')
     parser.add_argument('--evaluate', default=False, type=bool, help='Evaluation or Not')
+    parser.add_argument('--binary', default=True, type=bool, help='Binary queries')
+    parser.add_argument('--user_risk', default=0.2, type=float, help='Risk Level for End User')
+
+
 
 
     # Training Setup
@@ -65,8 +69,10 @@ def args_create():
     parser.add_argument('--print-freq', default=10, type=int, metavar='N', help='Plot Frequencies')
 
 
-    parser.add_argument('--resume-attacker', default=None, type=str, metavar='PATH', help='path to latest checkpoint (default: none)')
-    parser.add_argument('--resume-beacon', default=None, type=str, metavar='PATH', help='path to latest checkpoint (default: none)')
+    parser.add_argument('--resume-attacker', default="/data6/sobhan/Beacons/results/train/run99/weights/25000/PPO_0.pth", type=str, metavar='PATH', help='path to latest checkpoint (default: none)')
+    parser.add_argument('--resume-beacon', default="/data6/sobhan/Beacons/results/train/run99/weights/25000", type=str, metavar='PATH', help='path to latest checkpoint (default: none)')
+
+    # parser.add_argument('--resume-beacon', default='/data6/sobhan/Beacons/results/train/run77/weights', type=str, metavar='PATH', help='path to latest checkpoint (default: none)')
 
 
     parser.add_argument('--results-dir', default='./results/train', type=str, metavar='PATH', help='path to cache (default: none)')
@@ -188,11 +194,11 @@ def main():
 
         action_std = 0.4
 
-        state_dim = 9
+        state_dim = 18
         action_dim = 1
 
-        attacker_state_dim = 400
-        attacker_action_dim = 10
+        attacker_state_dim = 10
+        attacker_action_dim = 12
 
         # initialize a PPO agent
         # beacon_agent = DDPG(state_dim, action_dim, )

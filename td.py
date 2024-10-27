@@ -3,6 +3,7 @@ import numpy as np
 import torch
 import copy
 import torch.nn as nn
+import random
 
 
 
@@ -30,7 +31,7 @@ class ReplayBuffer():
 
 	def store(self, s, a, r, s_next, dw):
 		self.s[self.ptr] = torch.from_numpy(s).to(device)
-		self.a[self.ptr] = a.to(device) # Note that a is numpy.array
+		self.a[self.ptr] = a.to(device)
 		self.r[self.ptr] = r
 		self.s_next[self.ptr] = torch.from_numpy(s_next).to(device)
 		self.dw[self.ptr] = dw
@@ -55,8 +56,7 @@ class Actor(nn.Module):
     def forward(self, state):
         a = torch.tanh(self.l1(state))
         a = torch.tanh(self.l2(a))
-        a = torch.sigmoid(self.l3(a))# * self.maxaction
-        # a = torch.tanh(self.l3(a)) * self.maxaction
+        a = torch.sigmoid(self.l3(a))# 
         return a
 
 
@@ -64,12 +64,10 @@ class Double_Q_Critic(nn.Module):
     def __init__(self, state_dim, action_dim, net_width):
         super(Double_Q_Critic, self).__init__()
 
-        # Q1 architecture
         self.l1 = nn.Linear(state_dim + action_dim, net_width) 
         self.l2 = nn.Linear(net_width, net_width)
         self.l3 = nn.Linear(net_width, 1)
 
-        # Q2 architecture
         self.l4 = nn.Linear(state_dim + action_dim, net_width)
         self.l5 = nn.Linear(net_width, net_width)
         self.l6 = nn.Linear(net_width, 1)
@@ -98,7 +96,6 @@ class Double_Q_Critic(nn.Module):
 
 class TD3():
 	def __init__(self, state_dim, action_dim, max_action, lr_actor=1e-4, lr_critic=1e-4, gamma=0.99, tau=0.005, K_epochs=50, net_width=256):
-		# Init hyperparameters for agent, just like "self.gamma = opt.gamma, self.lambd = opt.lambd, ..."
 		self.max_action = max_action
 		self.policy_noise = 0.2*self.max_action
 		self.noise_clip = 0.5*self.max_action
@@ -126,27 +123,27 @@ class TD3():
 			state = torch.FloatTensor(state).to(device)  # from [x,x,...,x] to [[x,x,...,x]]
 			a = self.actor(state).cpu().numpy()[0] # from [[x,x,...,x]] to [x,x,...,x]
 			if deterministic:
+				# print("Agent Action was: ", a)
+				# return 1 if random.random() < a else 0
 				return a
 			else:
 				noise = np.random.normal(0, self.max_action * self.explore_noise, size=self.action_dim)
-				return (a + noise).clip(0, self.max_action)
+				action = (a + noise).clip(0, self.max_action)
+				# action = 1 if random.random() < action else 0
+				# return np.array([action])
+				return action
 
 	def update(self):
 		for _ in range(self.K_epochs):
 			self.delay_counter += 1
 			with torch.no_grad():
 				s, a, r, s_next, dw = self.buffer.sample(self.batch_size)
-
-				# Compute the target Q
+				
 				target_a_noise = (torch.randn_like(a) * self.policy_noise).clamp(-self.noise_clip, self.noise_clip)
-				'''↓↓↓ Target Policy Smoothing Regularization ↓↓↓'''
 				smoothed_target_a = (self.actor_target(s_next) + target_a_noise).clamp(-self.max_action, self.max_action)
 				target_Q1, target_Q2 = self.q_critic_target(s_next, smoothed_target_a)
-				'''↓↓↓ Clipped Double Q-learning ↓↓↓'''
 				target_Q = torch.min(target_Q1, target_Q2)
-				target_Q = r + (~dw) * self.gamma * target_Q  #dw: die or win
-
-			# Get current Q estimates
+				target_Q = r + (~dw) * self.gamma * target_Q
 			current_Q1, current_Q2 = self.q_critic(s, a)
 
 			# Compute critic loss, and Optimize the q_critic
@@ -155,15 +152,12 @@ class TD3():
 			q_loss.backward()
 			self.q_critic_optimizer.step()
 
-			'''↓↓↓ Clipped Double Q-learning ↓↓↓'''
 			if self.delay_counter > self.delay_freq:
-				# Update the Actor
 				a_loss = -self.q_critic.Q1(s,self.actor(s)).mean()
 				self.actor_optimizer.zero_grad()
 				a_loss.backward()
 				self.actor_optimizer.step()
 
-				# Update the frozen target models
 				with torch.no_grad():
 					for param, target_param in zip(self.q_critic.parameters(), self.q_critic_target.parameters()):
 						target_param.data.copy_(self.tau * param.data + (1 - self.tau) * target_param.data)

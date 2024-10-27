@@ -40,10 +40,7 @@ class Attacker():
         # print("diff_discriminative_queries Attacker", self.diff_discriminative_queries)
 
         if self.args.attacker_type == "random":
-            sorted_gene_indices = torch.argsort(self.mafs)
-            K = int(self.args.gene_size * 0.1)
-            self.risky_queries = sorted_gene_indices[:K].tolist()
-            self.non_risky_queries = sorted_gene_indices[K:].tolist()
+            self.random_queries = self._init_random(self.args.user_risk)
 
         # Initializing the control LRTS
         self.control_lrts = torch.zeros(size=(self.args.a_control_size,))
@@ -153,15 +150,7 @@ class Attacker():
             raise RuntimeError("Something went wrong!")
 
         if self.args.attacker_type == "random":
-            if random.random() < 0.3 and self.risky_queries:
-                query = random.choice(self.risky_queries)
-                self.risky_queries.remove(query)
-            elif self.non_risky_queries:
-                query = random.choice(self.non_risky_queries)
-                self.non_risky_queries.remove(query)
-            else:
-                query = None
-            return query
+            return self.random_queries[current_step]
 
         if self.args.attacker_type == "SF":
             return self.diff_discriminative_queries[current_step]
@@ -321,3 +310,17 @@ class Attacker():
             group_counts.append(count)
 
         return group_boundaries, group_counts
+
+
+    def _init_random(self, risk_level):
+        sorted_mafs, indices = torch.sort(self.mafs)
+        weights = torch.linspace(0, 1, len(self.mafs.clone()))
+        weights = weights ** (1 - risk_level)
+        weights = weights / weights.sum()
+        samples = torch.multinomial(weights, self.args.max_queries, replacement=True)
+        queries = indices[samples]
+        return queries
+
+        
+
+        

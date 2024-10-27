@@ -162,6 +162,8 @@ class Env():
             max_pvalue_change_threshold = 0.3
             beacon_action = self.beacon.act(attacker_action, max_pvalue_change_threshold)
             
+        if self.args.binary:
+            beacon_action = (beacon_action >= 0.5).float()
 
         # self.attacker_agent_actions.append(agent_action)
         # self.beacon_agent_actions.append(beacon_action)
@@ -277,8 +279,10 @@ class Env():
         victim_ind -= 1
         # print("-------------------------")
 
-        # Just for test 
-        beacon_control = attack_control
+        # Just for training
+        if not self.args.evaluate:
+            print("Setting the same control groups!")
+            beacon_control = attack_control
         # print(beacon_case)
         mafs = torch.Tensor(self.maf)
         nsnp_msk = (mafs == 0)

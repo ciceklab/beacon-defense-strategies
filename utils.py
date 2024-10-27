@@ -6,6 +6,7 @@ import csv
 import seaborn as sns
 import matplotlib.patches as mpatches
 from matplotlib.lines import Line2D
+from PIL import Image
 
 import copy
 import torch
@@ -449,35 +450,50 @@ def plot_violinplot(data, labels, title, ylabel):
     plt.show()
 
 
+params = {'legend.fontsize': 25,
+        'figure.figsize': (25, 10),  # Reduced figure size
+        'axes.labelsize': 40,
+        'axes.titlesize': 50,
+        'xtick.labelsize': 35,
+        'ytick.labelsize': 30,
+        'lines.linewidth': 8}  # Adjusted line width
 
-def line_plot(data, labels, title, ylabel):
-    fig, ax = plt.subplots()
-    color_palette = ["#65879F", "#8B8C89", "#425062", "#8F5C5C", "#CFACAC"]
-    x_ticks = ['1', '10', '20', '30', '40', '50']
-    classes, stages = data.shape
+plt.rcParams.update(params)
+def line_plot(line_data, labels, title, ylabel_line):
+    fig, ax1 = plt.subplots(1, 1, figsize=(10, 6))  # Single subplot now
+
+    color_palette = ["#2E2E2E", "#E74C3C", "#3498DB", "#1ABC9C", "#E67E22", "#F1C40F", "#65879F", "#8B8C89", "#425062", "#8F5C5C", "#CFACAC"]
+    x_ticks = ['1', '100', '200', '300', '400', '500', '600', '700', '800', '900', '1000']
+    classes, stages = line_data.shape
     
     x_positions = np.arange(stages)
     
+    # Plotting the line data
     for class_idx in range(classes):
-        class_data = data[class_idx, :]  # shape (stages,)
+        class_data = line_data[class_idx, :]  # shape (stages,)
         edge_color = 'black'
         line_color = color_palette[class_idx]
         
         # Plotting the line with markers
-        ax.plot(x_positions, class_data, marker='o', color=line_color, markeredgewidth=5, markeredgecolor=edge_color, linewidth=10)
+        ax1.plot(x_positions, class_data, marker='o', color=line_color, markeredgewidth=1, markeredgecolor=edge_color, linewidth=3)
 
-    ax.set_xlabel('Query')
-    ax.set_ylabel(ylabel)
-    ax.set_title(title)
+    ax1.set_ylabel(ylabel_line, fontsize=15)
+    ax1.set_ylim(0, 1)
+    ax1.set_xticks(x_positions)
+    ax1.set_xticklabels(x_ticks, fontsize=20)
+    ax1.spines['bottom'].set_visible(True)  # Bottom border is visible for a single plot
+
+    # y_ticks = ax1.get_yticks()
+    # ax1.set_yticklabels(['' if tick == 0 else f'{tick:.1f}' for tick in y_ticks])
+    ax1.tick_params(axis='y', labelsize=12)
+    ax1.set_xlabel('Query Number', fontsize=20)
     
-    # Setting the legend
-    handles = [mpatches.Patch(color=color_palette[i], label=labels[i], edgecolor='black') for i in range(classes)]
-    ax.legend(handles, labels, loc="lower right")
+    # Adding legend for line plot
+    handles = [mpatches.Patch(facecolor=color_palette[i], label=labels[i], edgecolor='black', linewidth=1) for i in range(classes)]
+    ax1.legend(handles, labels, loc="lower left", fontsize=12)
     
-    ax.set_xticks(x_positions)
-    ax.set_xticklabels(x_ticks)
-    ax.grid(True, linestyle='--', color='gray', alpha=0.5)
-    
+    # Adjust subplot layout
+    plt.tight_layout()
     plt.show()
 
 def scatter_plot(y_data, size_data, labels, title, ylabel):
@@ -529,17 +545,27 @@ def scatter_plot(y_data, size_data, labels, title, ylabel):
 
     plt.show()
 
+params = {'legend.fontsize': 25,
+        'figure.figsize': (20, 10),  # Reduced figure size
+        'axes.labelsize': 25,
+        'axes.titlesize': 50,
+        'xtick.labelsize': 20,
+        'ytick.labelsize': 20,
+        'lines.linewidth': 8}  # Adjusted line width
 
+plt.rcParams.update(params)
 
 def line_and_bar_plot(line_data, bar_data, labels, title, ylabel_line, ylabel_bar):
-    fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, gridspec_kw={'height_ratios': [3, 1]})
+    # fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, gridspec_kw={'height_ratios': [3, 1]})
+    fig, ax1 = plt.subplots(1, 1)
+
     
-    color_palette = ["#2E2E2E", "#E74C3C", "#3498DB", "#1ABC9C", "#E67E22", "#F1C40F"]
-    x_ticks = ['100', '200', '300', '400', '500', '600', '700', '800', '900', '1000']
+    color_palette = ["#2E2E2E", "#E74C3C", "#3498DB", "#1ABC9C", "#E67E22", "#F1C40F", "#65879F", "#8B8C89", "#425062", "#8F5C5C", "#CFACAC"]
+    x_ticks = ['1', '100', '200', '300', '400', '500', '600', '700', '800', '900', '1000']
     classes, stages = line_data.shape
     
     x_positions = np.arange(stages)
-    bar_width = 0.15  # Adjusted Bar width for better clarity
+    bar_width = 0.12  # Adjusted Bar width for better clarity
     
     # Plotting the line data
     for class_idx in range(classes):
@@ -548,44 +574,221 @@ def line_and_bar_plot(line_data, bar_data, labels, title, ylabel_line, ylabel_ba
         line_color = color_palette[class_idx]
         
         # Plotting the line with markers
-        ax1.plot(x_positions, class_data, marker='o', color=line_color, markeredgewidth=5, markeredgecolor=edge_color, linewidth=8, alpha=0.8)
+        ax1.plot(x_positions, class_data, marker='o', color=line_color, markeredgewidth=2, markeredgecolor=edge_color, linewidth=5, alpha=0.8)
 
     ax1.set_ylabel(ylabel_line)
-    ax1.set_title(title)
-    
-    # Set x-axis ticks and labels
+    ax1.set_ylim(0.9, 1)
     ax1.set_xticks(x_positions)
     ax1.set_xticklabels(x_ticks)
-    ax1.grid(True, linestyle='--', color='gray', alpha=0.5)
+    # ax1.spines['bottom'].set_visible(False)
+
+    # y_ticks = ax1.get_yticks()
+    # ax1.set_yticklabels(['' if tick == 0 else f'{tick:.1f}' for tick in y_ticks])
+    ax1.tick_params(axis='y', labelsize=20)
     
     # Adding legend for line plot
-    handles = [mpatches.Patch(color=color_palette[i], label=labels[i], edgecolor='black', alpha=0.8) for i in range(classes)]
-    ax1.legend(handles, labels, loc="lower left")
+    handles = [mpatches.Patch(facecolor=color_palette[i], label=labels[i], edgecolor='black', linewidth=3, alpha=0.8) for i in range(classes)]
+    ax1.legend(handles, labels, loc="lower left", fontsize=20)
     
-    # Plotting the bar data on the lower axis
+    # # Plotting the bar data on the lower axis
+    # for class_idx in range(classes):
+    #     bar_vals = bar_data[class_idx, :]  # shape (stages,)
+    #     bar_color = color_palette[class_idx]
+        
+    #     # Offset the bar positions to avoid overlap
+    #     bars = ax2.bar(x_positions + (class_idx - classes / 2) * bar_width, bar_vals + 0.5, width=bar_width, color=bar_color, alpha=0.8)
+        
+    #     # Annotate bars with their values
+    #     for bar in bars:
+    #         height = bar.get_height()
+    #         ax2.annotate(f'{height-0.5:.0f}',  # format the label
+    #                      xy=(bar.get_x() + bar.get_width() / 2, height),  # set the label position
+    #                      xytext=(0, 3),  # 3 points vertical offset
+    #                      textcoords="offset points",
+    #                      ha='center', va='bottom',
+    #                      fontsize=12)
+
+    # # Set ylabel for bar plot
+    # ax2.set_ylabel(ylabel_bar, fontsize=30)
+    ax1.set_xlabel('Query Number')
+    
+    # ax2.set_xticks(x_positions)
+    # ax2.set_xticklabels(x_ticks)
+    # ax2.tick_params(axis='y', labelsize=25)
+    # ax2.spines['top'].set_visible(False)
+
+    # Adjust subplot spacing
+    plt.subplots_adjust(top=0.95, bottom=0.08, left=0.07, right=0.97, hspace=0.15)  # Fine-tuned margins
+    plt.tight_layout()
+    # plt.show()
+
+
+def line_and_bar_plot2(line_data, bar_data, labels, title, ylabel_line, ylabel_bar):
+    fig, ax1 = plt.subplots()
+    
+    color_palette = ["#2E2E2E", "#E74C3C", "#3498DB", "#1ABC9C", "#E67E22", "#F1C40F", "#65879F", "#8B8C89", "#425062", "#8F5C5C", "#CFACAC"]
+    x_ticks = ['1', '100', '200', '300', '400', '500', '600', '700', '800', '900', '1000']
+    classes, stages = line_data.shape
+    
+    x_positions = np.arange(stages)
+    bar_width = 0.12  # Adjusted Bar width for better clarity
+    
+    # Plotting the line data
+    for class_idx in range(classes):
+        class_data = line_data[class_idx, :]  # shape (stages,)
+        edge_color = 'black'
+        line_color = color_palette[class_idx]
+        
+        # Plotting the line with markers
+        ax1.plot(x_positions, class_data, marker='o', color=line_color, markeredgewidth=2, markeredgecolor=edge_color, linewidth=3)
+
+    ax1.set_ylabel(ylabel_line)
+    ax1.set_ylim(0, 1)
+    ax1.set_xticks(x_positions)
+    ax1.set_xticklabels(x_ticks)
+    ax1.set_yticks(np.linspace(0, 1, 6))
+    
+    # Adding legend for line plot
+    handles = [mpatches.Patch(facecolor=color_palette[i], label=labels[i], edgecolor='black', linewidth=2) for i in range(classes)]
+    ax1.legend(handles, labels, loc="center left")
+    
+    # Create a twin axis to plot the bar chart
+    ax2 = ax1.twinx()
+    
+    # Plotting the bar data on the same axis
     for class_idx in range(classes):
         bar_vals = bar_data[class_idx, :]  # shape (stages,)
         bar_color = color_palette[class_idx]
         
         # Offset the bar positions to avoid overlap
-        bars = ax2.bar(x_positions + (class_idx - classes / 2) * bar_width, bar_vals + 0.5, width=bar_width, color=bar_color, alpha=0.8)
+        bars = ax2.bar(x_positions + (class_idx - classes / 2) * bar_width, bar_vals+0.5, width=bar_width, color=bar_color, alpha=0.7)
         
         # Annotate bars with their values
         for bar in bars:
             height = bar.get_height()
-            ax2.annotate(f'{height-0.5:.1f}',  # format the label
+            ax2.annotate(f'{height:.0f}',  # format the label
                          xy=(bar.get_x() + bar.get_width() / 2, height),  # set the label position
                          xytext=(0, 3),  # 3 points vertical offset
                          textcoords="offset points",
                          ha='center', va='bottom',
-                         fontsize=20)
+                         fontsize=12)
 
     # Set ylabel for bar plot
     ax2.set_ylabel(ylabel_bar)
-    ax2.set_xlabel('Query')
+    ax2.set_ylim(0, 100)
+    ax2.set_yticks([0, 10, 20, 30])
+    ax2.tick_params(axis='y', labelsize=30)
+
     
-    ax2.set_xticks(x_positions)
-    ax2.set_xticklabels(x_ticks)
+    ax1.set_xlabel('Query Number')
     
+    # Adjust subplot spacing
+    # plt.title(title, fontsize=18)
+    plt.tight_layout()
+    plt.show()
+    
+def line_and_bar_plot3(line_data, bar_data, labels, ylabel_line, ylabel_bar):
+    # line_data and bar_data should have shapes (4, 7, 11), so we iterate over the first dimension
+    num_groups, classes, stages = line_data.shape
+    
+    fig, axs = plt.subplots(2, 2)  # Create a 2x2 grid for the panels
+    color_palette = ["#2E2E2E", "#E74C3C", "#3498DB", "#1ABC9C", "#E67E22", "#F1C40F", "#65879F", "#8B8C89", "#425062", "#8F5C5C", "#CFACAC"]
+    x_ticks = ['1', '100', '200', '300', '400', '500', '600', '700', '800', '900', '1000']
+    x_positions = np.arange(stages)
+    bar_width = 0.12  # Adjusted Bar width for better clarity
+
+
+    labels_for_plots = ['A', 'B', 'C', 'D']  # To mark each plot
+
+    # Iterate over the first dimension (groups) and plot each group in a separate panel
+    for group_idx in range(num_groups):
+        ax = axs[group_idx // 2, group_idx % 2]  # Get the correct panel (axes) for the 2x2 grid
+        ax.set_xticks([])  # Removes the x-ticks
+        ax.set_xticklabels([])  # Removes the x-tick labels
+        ax.set_yticks([])  # Removes the x-ticks
+        ax.set_yticklabels([])  # Removes the x-tick labels
+
+        ax.text(0, 1.1, labels_for_plots[group_idx], transform=ax.transAxes, 
+                fontsize=25, fontweight='bold', va='top', ha='right')
+
+        if group_idx != num_groups - 1: 
+            # Create two subplots (ax1 for line plot, ax2 for bar plot) in the current panel
+            ax1 = ax.inset_axes([0, 0.28, 1, 0.7])  # Upper inset for the line plot
+            ax2 = ax.inset_axes([0, 0, 1, 0.25])  # Lower inset for the bar plot
+            ax1.set_xticks([])  # Removes the x-ticks
+            ax1.set_xticklabels([])  # Removes the x-tick labels
+            ax1.spines['bottom'].set_visible(False)
+            ax1.spines['top'].set_visible(False)
+
+
+        else:
+            for spine in ax.spines.values():
+                spine.set_visible(False)
+            ax1 = ax.inset_axes([0, 0.28, 1, 0.72])
+            ax1.set_xlabel('Query Number', fontsize=20)
+            ax1.set_xticks(x_positions)
+            ax1.set_xticklabels(x_ticks)
+            ax1.tick_params(axis='x', labelsize=25)
+
+
+
+        # Plotting the line data on the upper axis (ax1)
+        for class_idx in range(classes):
+            class_data = line_data[group_idx, class_idx, :]  # shape (stages,)
+            edge_color = 'black'
+            line_color = color_palette[class_idx]
+
+            ax1.plot(x_positions, class_data, marker='.', color=line_color, markeredgewidth=2, markeredgecolor=edge_color, linewidth=5, alpha=0.8)
+
+        ax1.set_ylabel(ylabel_line, fontsize=20)
+        ax1.set_ylim(0, None)
+        # ax1.set_xticks(x_positions)
+        # ax1.set_xticklabels(x_ticks)
+
+        y_ticks = np.linspace(0, 1, 5)
+        ax1.set_yticks(y_ticks)
+        ax1.set_yticklabels([f'{tick:.1f}' if tick != 0 else '' for tick in y_ticks])
+        ax1.tick_params(axis='y', labelsize=25)
+
+        
+
+        # Adding legend for line plot
+        handles = [mpatches.Patch(facecolor=color_palette[i], label=labels[i], edgecolor='black', linewidth=2, alpha=0.8) for i in range(classes)]
+        # ax1.legend(handles, labels, loc="lower left", fontsize=15)
+
+        # Plotting the bar data on the lower axis (ax2)
+        if group_idx != num_groups - 1: 
+            for class_idx in range(classes):
+                bar_vals = bar_data[group_idx, class_idx, :]  # shape (stages,)
+                bar_color = color_palette[class_idx]
+
+                bars = ax2.bar(x_positions + (class_idx - classes / 2) * bar_width, bar_vals + 0.5, width=bar_width, color=bar_color, alpha=0.8)
+
+                # # Annotate bars with their values
+                # for bar in bars:
+                #     height = bar.get_height()
+                #     ax2.annotate(f'{height-0.5:.0f}', 
+                #                 xy=(bar.get_x() + bar.get_width() / 2, height),
+                #                 xytext=(0, 3), 
+                #                 textcoords="offset points",
+                #                 ha='center', va='bottom',
+                #                 fontsize=10)
+
+            ax2.set_ylabel(ylabel_bar, fontsize=20)
+            ax2.set_xlabel('Query Number', fontsize=20)
+            ax2.set_xticks(x_positions)
+            ax2.set_xticklabels(x_ticks)
+            ax2.set_yticks([0, 10, 20, 30])
+
+            ax2.tick_params(axis='y', labelsize=20)
+            ax2.tick_params(axis='x', labelsize=25)
+            ax2.spines['top'].set_visible(False)
+            ax2.grid(True, linestyle='--', color='gray', linewidth=0.7, alpha=0.6)
+
+    # fig.legend(handles=handles, loc='lower right', ncol=classes, fontsize=23, frameon=False)
+    # handles = [mpatches.Patch(facecolor=color_palette[i], label=labels[i], edgecolor='black', linewidth=2, alpha=0.5) for i in range(classes)]
+    # fig.legend(handles, labels, loc="lower right", fontsize=15)
+    legend = fig.legend(handles=handles, loc='lower right', bbox_to_anchor=(0.98, 0.03), ncol=4, fontsize=20)  
+
     plt.tight_layout()
     plt.show()

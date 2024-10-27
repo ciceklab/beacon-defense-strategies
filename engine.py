@@ -180,7 +180,7 @@ def train_both(args:object, env:object, beacon_agent:object, attacker_agent=None
         os.makedirs(directory)
 
     checkpoint_path_beacon = directory
-    checkpoint_path_attacker = directory + "/PPO_attacker{}.pth".format(run_num)
+    checkpoint_path_attacker = directory + "/PPO_{}.pth".format(run_num)
 
     print("save checkpoint path : " + checkpoint_path_beacon)
 
@@ -202,7 +202,7 @@ def train_both(args:object, env:object, beacon_agent:object, attacker_agent=None
         for t in range(1, args.max_queries+1):
 
             binfo, rewards, done, _ = env.step(beacon_agent=beacon_agent, attacker_agent=attacker_agent)
-            ppo_agent.buffer.store(beacon_state, beacon_action, beacon_reward, binfo[0], beacon_dw)
+            beacon_agent.buffer.store(beacon_state, beacon_action, beacon_reward, binfo[0], beacon_dw)
             beacon_state, beacon_action, beacon_reward, beacon_dw = binfo
 
             beacon_reward = rewards[0]
@@ -217,12 +217,12 @@ def train_both(args:object, env:object, beacon_agent:object, attacker_agent=None
             time_step +=1
 
             if done:
-                ppo_agent.buffer.store(beacon_state, beacon_action, beacon_reward, beacon_state, beacon_dw)
+                beacon_agent.buffer.store(beacon_state, beacon_action, beacon_reward, beacon_state, beacon_dw)
                 break
 
             # if continuous action space; then decay action std of ouput action distribution
-            if i_episode % 50==0 and i_episode>0:
-                attacker_agent.decay_action_std(0.05, 0.05)
+            # if i_episode % 50==0 and i_episode>0:
+            #     attacker_agent.decay_action_std(0.05, 0.05)
 
         print("Victim: {} \t Timestep : {} \t Beacon Reward : {}\t Attacker Reward : {}".format(env.victim_id, time_step, current_ep_reward, current_ep_areward))
 
@@ -236,7 +236,10 @@ def train_both(args:object, env:object, beacon_agent:object, attacker_agent=None
 
             # save model weights
             print("saving model at : " + checkpoint_path_beacon)
-            beacon_agent.save(checkpoint_path_beacon)
+            if not os.path.exists(checkpoint_path_beacon+ "/{}".format(i_episode)):
+                os.makedirs(checkpoint_path_beacon+ "/{}".format(i_episode))
+            beacon_agent.save(checkpoint_path_beacon+ "/{}".format(i_episode))
+            checkpoint_path_attacker = directory + "/{}/PPO_{}.pth".format(i_episode, run_num)
             attacker_agent.save(checkpoint_path_attacker)
             print("model saved")
             print("Elapsed Time  : ", datetime.now().replace(microsecond=0) - start_time)
