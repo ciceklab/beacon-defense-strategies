@@ -546,7 +546,7 @@ def scatter_plot(y_data, size_data, labels, title, ylabel):
     plt.show()
 
 params = {'legend.fontsize': 25,
-        'figure.figsize': (20, 10),  # Reduced figure size
+        'figure.figsize': (32, 16),  # Reduced figure size
         'axes.labelsize': 25,
         'axes.titlesize': 50,
         'xtick.labelsize': 20,
@@ -577,7 +577,7 @@ def line_and_bar_plot(line_data, bar_data, labels, title, ylabel_line, ylabel_ba
         ax1.plot(x_positions, class_data, marker='o', color=line_color, markeredgewidth=2, markeredgecolor=edge_color, linewidth=5, alpha=0.8)
 
     ax1.set_ylabel(ylabel_line)
-    ax1.set_ylim(0.9, 1)
+    ax1.set_ylim(0, 1)
     ax1.set_xticks(x_positions)
     ax1.set_xticklabels(x_ticks)
     # ax1.spines['bottom'].set_visible(False)

@@ -161,13 +161,20 @@ class Env():
             beacon_state = self.beacon.get_state(attacker_action, self.current_step)
             max_pvalue_change_threshold = 0.3
             beacon_action = self.beacon.act(attacker_action, max_pvalue_change_threshold)
+
             
         if self.args.binary:
-            beacon_action = (beacon_action >= 0.5).float()
-
+            if isinstance(beacon_action, torch.Tensor):
+                beacon_action = (beacon_action >= 0.5).float()
+            elif isinstance(beacon_action, np.ndarray):
+                beacon_action = (beacon_action >= 0.5).astype(float)
+            elif isinstance(beacon_action, (np.float32, float)):
+                beacon_action = np.array([float(beacon_action >= 0.5)], dtype=np.float32)[0]
+            
         # self.attacker_agent_actions.append(agent_action)
         # self.beacon_agent_actions.append(beacon_action)
-
+        # print("Type of beacon_action before env.step:", type(beacon_action))
+        # print("Value of beacon_action before env.step:", beacon_action)
 
         ################# Save the Actions
         # beacon_action = torch.clamp(torch.as_tensor(beacon_action), min=0, max=1)

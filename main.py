@@ -69,10 +69,11 @@ def args_create():
     parser.add_argument('--print-freq', default=10, type=int, metavar='N', help='Plot Frequencies')
 
 
-    parser.add_argument('--resume-attacker', default="/data6/sobhan/Beacons/results/train/run99/weights/25000/PPO_0.pth", type=str, metavar='PATH', help='path to latest checkpoint (default: none)')
-    parser.add_argument('--resume-beacon', default="/data6/sobhan/Beacons/results/train/run99/weights/25000", type=str, metavar='PATH', help='path to latest checkpoint (default: none)')
+    # parser.add_argument('--resume-attacker', default="/data6/sobhan/Beacons/results/train/run99/weights/25000/PPO_0.pth", type=str, metavar='PATH', help='path to latest checkpoint (default: none)')
+    parser.add_argument('--resume-attacker', default=None, type=str, metavar='PATH', help='path to latest checkpoint (default: none)')
+    # parser.add_argument('--resume-beacon', default="/data6/sobhan/Beacons/results/train/run99/weights/25000", type=str, metavar='PATH', help='path to latest checkpoint (default: none)')
 
-    # parser.add_argument('--resume-beacon', default='/data6/sobhan/Beacons/results/train/run77/weights', type=str, metavar='PATH', help='path to latest checkpoint (default: none)')
+    parser.add_argument('--resume-beacon', default='/data6/sobhan/Beacons/results/train/run77/weights', type=str, metavar='PATH', help='path to latest checkpoint (default: none)')
 
 
     parser.add_argument('--results-dir', default='./results/train', type=str, metavar='PATH', help='path to cache (default: none)')
