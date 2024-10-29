@@ -23,7 +23,7 @@ def calculate_B(maf, num_people, error=0.001):
 
 def calculate_lrt(num_people, y, genome, maf, actual_responses):
     # index of queries which has response zero
-    Q_0 = np.where(~actual_responses)
+    Q_0 = np.where(1 - actual_responses)
     # index of queroes which has  response one
     Q_1 = np.where(actual_responses)
 
