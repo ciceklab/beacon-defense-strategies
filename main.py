@@ -49,11 +49,8 @@ def args_create():
     parser.add_argument('--victim_prob', default=1, type=float, help='Victim inside beacon or not!')
     parser.add_argument('--max_queries', default=50, type=int, help='Maximum queries per episode')
     parser.add_argument('--evaluate', default=False, type=bool, help='Evaluation or Not')
-    parser.add_argument('--binary', default=True, type=bool, help='Binary queries')
+    parser.add_argument('--binary', default=False, type=bool, help='Binary queries')
     parser.add_argument('--user_risk', default=0.2, type=float, help='Risk Level for End User')
-
-
-
 
     # Training Setup
     parser.add_argument('--train', default="attacker", choices=["attacker", "beacon", "both"], type=str, help='Train side!')
