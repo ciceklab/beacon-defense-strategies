@@ -44,6 +44,20 @@ conda activate beacon
 
 ## Instructions Manual
 
+### Simulating with Game Theory model
+> **Important**: Run script `simulate.py` from directory `game_theory/scripts`.
+
+#### Key Arguments
+
+- `--num_queries`: Specifies the maximum number of attacker queries.
+- `--victim_snps`: Number of SNPs in the beacon that are present in the victim.
+- `--seed`: Random seed for reproducibility.
+- `--a_control_size`: Defines the size of the attack control group.
+- `--gene_size`: Sets the total gene size for the simulation.
+- `--beacon_size`: Beacon population size.
+- `--victim_count`: Total number of victims in the simulation.
+- `--victims_in_beacon_count`: Number of victims included in the beacon.
+
 ### Training the Models
 
 > **Important**: Run the training scripts from the main directory.
