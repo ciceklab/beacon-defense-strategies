@@ -4,3 +4,5 @@ agents
 logs
 dataset
 *.ipynb
+__pycache__/
+*.py[cod]
