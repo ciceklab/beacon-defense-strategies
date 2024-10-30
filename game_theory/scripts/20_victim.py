@@ -1,11 +1,13 @@
+import os
+import time
+import argparse
+import warnings
+import numpy as np
+import multiprocessing
+import matplotlib.pyplot as plt
 from collections import defaultdict
 from itertools import permutations, product
-import multiprocessing
-from os import path
-import time
-import numpy as np
-import warnings
-import matplotlib.pyplot as plt
+
 from concurrent.futures import ThreadPoolExecutor
 
 from common.data import get_maf_values, pre_process_maf, get_data
@@ -15,36 +17,45 @@ from common.utility import UtilityAttacker, UtilityBeacon
 warnings.filterwarnings('ignore')
 
 # TODO: load these from cmd params
-NUM_QUERIES = 5
-POSSBILE_SNPS = 7
-EXIST_COUNT = 5
-BEACON_NOT_EXIST_COUNT = 0
-FIGURES_SAVE_DIR = "/home/masoud/DP_Project/results"
+NUM_QUERIES = 4
+POSSBILE_SNPS = 4
+EXIST_COUNT = 4
+FIGURES_SAVE_DIR = "/results"
 
+def args_create():
+    # @title Arguments
+    parser = argparse.ArgumentParser(description='Actor Critic')
 
-# TODO: fix the dirty code. My software engineer side is deeply sorry for this mess.
+    # IO
+    parser.add_argument('--results_dir', default='./results', type=str, help='Save dir')
+    parser.add_argument('--data_path', default="./data", type=str, help='Dataset Path')
+    
+    # Simulation
+    parser.add_argument('--num_queries', default=4, type=int, metavar='N', help='Maximum number of attacker queries.')
+    parser.add_argument('--victim_snps', default=4, type=int, help='Number of the SNPs in the beacon that exists in the victim')
+    parser.add_argument('--seed', default=2024, type=int, help='Seed for reproducibility')
+    parser.add_argument('--a_control_size', default=20, type=int, help='Attack Control group size')
+    parser.add_argument('--gene_size', default=100000, type=int, help='Gene size')
+    parser.add_argument('--beacon_size', default=10, type=int, help='Beacon population size')
+    parser.add_argument('--victim_count', default=20, type=int, help='Number of victims in the simulation')
+    parser.add_argument('--victims_in_beacon_count', default=20, type=int, help='Number of victims in the beacon.')
+    args = parser.parse_args() 
 
+    args.results_dir = os.path.join(args.results_dir, "run"+str(len(os.listdir(args.results_dir))))
+    os.makedirs(args.results_dir)
+    os.makedirs(args.results_dir+"/logs")
+    os.makedirs(args.results_dir+"/rewards")
+    os.makedirs(args.results_dir+"/indrewards")
+    os.makedirs(args.results_dir+"/actions")
+    os.makedirs(args.results_dir+"/pvalues")
+    
+    NUM_QUERIES = args.num_queries
+    POSSBILE_SNPS = args.gene_size
+    EXIST_COUNT = args.victim_snps
+    FIGURES_SAVE_DIR = args.results_dir
 
-# def sharer_u1(ai, si, p_prevs, p_currents, num_query, lrt_values):
-#     q1 = np.quantile(lrt_values, 0.25)
-#     target_LRTs = lrt_values[lrt_values < q1]
-
-#     if len(target_LRTs) != 0:
-#         target_LRTs = np.append(target_LRTs, np.mean(lrt_values))
-#         target_LRTs = (target_LRTs - target_LRTs.min()) / \
-#             (target_LRTs.max() - target_LRTs.min())
-
-#     mean = np.mean(target_LRTs)
-#     std_dev = np.std(target_LRTs, ddof=1)
-
-#     coe_variance = (std_dev / mean)
-#     if std_dev < 1 and mean < 1:
-#         coe_variance = std_dev
-
-#     term_one = (1 - coe_variance
-#                 ) if mean != 0 and len(target_LRTs) != 0 else 1
-
-#     return (term_one * 5 + sum(si) / len(si)) / 6
+    print(args)
+    return args
 
 def sharer_u1(ai, y_i, p_prevs, p_currents, num_query, lrt_values):
     q1 = np.quantile(lrt_values, 0.25)
@@ -66,9 +77,8 @@ def sharer_u1(ai, y_i, p_prevs, p_currents, num_query, lrt_values):
 
 def attacker_u1(ai, si, p_prev, p_current, num_query):
     utility = p_current
-    # print(f'* Attacker: ai: {ai}, si: {si}, p_prev: {p_prev}, p_current: {p_current}, num_query: {num_query} \n utility: {(utility+2) * 2/3}')
+
     return utility  # normalize
-    # return (utility+2) * 2/3 #normalize
 
 
 def retrive_optimal_strategies(victims, num_query, maf_values):
@@ -80,23 +90,6 @@ def retrive_optimal_strategies(victims, num_query, maf_values):
     return strategies
 
 
-# def retrive_random_strategies(exist_count, snp_count, possible_snps):
-#     strategies = np.zeros((victims.shape[1], possible_snps), dtype=np.int64)
-
-#     for ind, victim in enumerate(victims.T):
-#         print(f"Finding strategies for victim {ind}")
-#         A = np.random.choice(snp_count, possible_snps)
-
-#         while np.sum(victim[A]) < exist_count or not maf_values[A].all() \
-#                 or np.sum(maf_values[A] * victim[A]) >= 0.2 * exist_count:
-#             # print(np.sum(victim[A]))
-#             A = np.random.choice(snp_count, possible_snps)
-
-#         strategies[ind] = A
-#         print(A)
-
-#     return strategies
-
 def retrieve_strategy_for_victim(victim, ind, exist_count, snp_count, possible_snps):
     print(f"Finding strategies for victim {ind}")
     existing_indices = np.where(victim)[0]
@@ -105,7 +98,6 @@ def retrieve_strategy_for_victim(victim, ind, exist_count, snp_count, possible_s
     A = np.random.choice(existing_indices, exist_count, replace=False)
     A = np.concatenate((A, np.random.choice(
         no_existing_indices, possible_snps - exist_count, replace=False)))
-    # A = np.random.choice(snp_count, possible_snps)
 
     while np.sum(victim[A]) < exist_count or not maf_values[A].all() \
             or np.sum(maf_values[A] * victim[A]) >= 0.15 * possible_snps:
@@ -337,7 +329,7 @@ def plot_beacon_utilities(utilities, solution_name):
     ax.boxplot(beacon_results.values())
     ax.set_xticklabels(beacon_results.keys())
 
-    fig.savefig(path.join(FIGURES_SAVE_DIR,
+    fig.savefig(os.path.join(FIGURES_SAVE_DIR,
                 f"{solution_name}_sharer_utility.png"))
 
 
@@ -353,7 +345,7 @@ def plot_attacker_utilities(utilities, solution_name):
     ax.boxplot(beacon_results.values())
     ax.set_xticklabels(beacon_results.keys())
 
-    fig.savefig(path.join(FIGURES_SAVE_DIR,
+    fig.savefig(os.path.join(FIGURES_SAVE_DIR,
                 f"{solution_name}_attacker_utility.png"))
 
 
@@ -389,7 +381,7 @@ def plot_all_utilities(equlibrium_utilities, greedy_utilities, optimal_utilities
               ['Stackelberg', 'Greedy', 'Optimal (no defense)'])
     # ax.set_title(f"Distribution of {title} utilies with 20 victims")
 
-    fig.savefig(path.join(FIGURES_SAVE_DIR,
+    fig.savefig(os.path.join(FIGURES_SAVE_DIR,
                 f"{title}_utilities.png"))
 
 
@@ -411,17 +403,16 @@ def plot_all_utilities_alertnate(equlibrium_utilities, optimal_utilities, title)
               ['Game Theory', 'Optimal (no defense)'])
     # ax.set_title(f"Distribution of {title} utilies with 20 victims")
 
-    fig.savefig(path.join(FIGURES_SAVE_DIR,
+    fig.savefig(os.path.join(FIGURES_SAVE_DIR,
                 f"{title}_alternate_utilities.png"))
 
 
+args = args_create()
 if __name__ == "__main__":
-    np.random.seed(2024)
-
-    mainPath = "./data"
+    np.random.seed(args.seed)
 
     # Extracting column to an array for future use
-    maf_values = get_maf_values(mainPath)
+    maf_values = get_maf_values(args.data_path)
     print("Loaded maf values.")
 
     maf_values = pre_process_maf(maf_values)
@@ -429,14 +420,17 @@ if __name__ == "__main__":
 
     print("Loading data")
     s_beacon, a_control, victims = get_data(
-        mainPath, victims_in_beacon_count=20)
-
-    # TODO: check the existance of victims in both beacon and control group
+        args.data_path,
+        control_size=args.a_control_size,
+        victim_count=args.victim_count,
+        beacon_ind_people_size=args.beacon_size,
+        victims_in_beacon_count=args.victims_in_beacon_count
+    )
 
     print("Loaded and split data (Victims, beacon, attacker control group)")
     print(f'Beacon size: {len(s_beacon.T)}')
     print(f'Attacker control group size: {len(a_control.T)}')
-    print(f'Victims in beacon: {10}')
+    print(f'Victims in beacon: {args.victims_in_beacon_count}')
 
     randomness_id = np.random.rand()
     print(f'Randomness Id is: {randomness_id}')
@@ -456,8 +450,6 @@ if __name__ == "__main__":
     all_sharer = list(product(sharer_strategies, repeat=NUM_QUERIES))
 
     # Calculate attackers' strategy
-    # attackers_strategies = retrive_optimal_strategies(
-    #     victims, NUM_QUERIES, maf_values)
     attackers_strategies = retrive_random_strategies(
         EXIST_COUNT, len(maf_values), POSSBILE_SNPS)
     all_attacker = retrive_all_attacker(attackers_strategies, NUM_QUERIES)
@@ -554,7 +546,7 @@ if __name__ == "__main__":
 
     # Save the data
     print("Saving data...")
-    with open(path.join(FIGURES_SAVE_DIR,
+    with open(os.path.join(FIGURES_SAVE_DIR,
                         f"plot_data.npy"), 'wb') as f:
         np.save(f, equlibrium_attacker_utilities)
         np.save(f, greedy_attacker_utilities)
