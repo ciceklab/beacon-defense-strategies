@@ -94,7 +94,7 @@ import os
 import joblib
 
 # Cache file path
-cache_path = "/data6/sobhan/Beacons/dataset/binary_cache.joblib"
+cache_path = "./dataset/binary_cache.joblib"
 
 # Check if the cached file exists
 if os.path.exists(cache_path):
@@ -214,44 +214,44 @@ def simulate(args, beacon_type, attacker_type, attacker_resume=None, beacon_resu
 #     {
 #         "beacon_type": "agent",
 #         "attacker_type": "random",
-#         "beacon_resume": "/data6/sobhan/Beacons/results/train/run98/weights",
-#         "attacker_resume": "/data6/sobhan/Beacons/results/train/run96/weights/25000/PPO_0.pth"
+#         "beacon_resume": "./results/train/run98/weights",
+#         "attacker_resume": "./results/train/run96/weights/25000/PPO_0.pth"
 #     },
 #     {
 #         "beacon_type": "agent",
 #         "attacker_type": "random",
-#         "beacon_resume": "/data6/sobhan/Beacons/results/train/run96/weights/25000",
-#         "attacker_resume": "/data6/sobhan/Beacons/results/train/run96/weights/25000/PPO_0.pth"
+#         "beacon_resume": "./results/train/run96/weights/25000",
+#         "attacker_resume": "./results/train/run96/weights/25000/PPO_0.pth"
 #     },
 #     {
 #         "beacon_type": "qbudget",
 #         "attacker_type": "random",
 #         "beacon_resume": None,
-#         "attacker_resume": "/data6/sobhan/Beacons/results/train/run96/weights/25000/PPO_0.pth"
+#         "attacker_resume": "./results/train/run96/weights/25000/PPO_0.pth"
 #     },
 #     {
 #         "beacon_type": "truth",
 #         "attacker_type": "random",
 #         "beacon_resume": None,
-#         "attacker_resume": "/data6/sobhan/Beacons/results/train/run96/weights/25000/PPO_0.pth"
+#         "attacker_resume": "./results/train/run96/weights/25000/PPO_0.pth"
 #     },
 #     {
 #         "beacon_type": "baseline",
 #         "attacker_type": "random",
 #         "beacon_resume": None,
-#         "attacker_resume": "/data6/sobhan/Beacons/results/train/run96/weights/25000/PPO_0.pth"
+#         "attacker_resume": "./results/train/run96/weights/25000/PPO_0.pth"
 #     },
 #     {
 #         "beacon_type": "strategic",
 #         "attacker_type": "random",
 #         "beacon_resume": None,
-#         "attacker_resume": "/data6/sobhan/Beacons/results/train/run96/weights/25000/PPO_0.pth"
+#         "attacker_resume": "./results/train/run96/weights/25000/PPO_0.pth"
 #     },
 #     {
 #         "beacon_type": "random",
 #         "attacker_type": "random",
 #         "beacon_resume": None,
-#         "attacker_resume": "/data6/sobhan/Beacons/results/train/run96/weights/25000/PPO_0.pth"
+#         "attacker_resume": "./results/train/run96/weights/25000/PPO_0.pth"
 #     },
 # ]
 
@@ -260,49 +260,49 @@ def simulate(args, beacon_type, attacker_type, attacker_resume=None, beacon_resu
 #     {
 #         "beacon_type": "agent",
 #         "attacker_type": "random",
-#         "beacon_resume": "/data6/sobhan/Beacons/results/train/run77/weights",
-#         "attacker_resume": "/data6/sobhan/Beacons/results/train/run89/weights/PPO_attacker0.pth"
+#         "beacon_resume": "./results/train/run77/weights",
+#         "attacker_resume": "./results/train/run89/weights/PPO_attacker0.pth"
 #     },
 #     {
 #         "beacon_type": "agent",
 #         "attacker_type": "random",
-#         "beacon_resume": "/data6/sobhan/Beacons/results/train/run89/weights",
-#         "attacker_resume": "/data6/sobhan/Beacons/results/train/run89/weights/PPO_attacker0.pth"
+#         "beacon_resume": "./results/train/run89/weights",
+#         "attacker_resume": "./results/train/run89/weights/PPO_attacker0.pth"
         
 #     },
 #     {
 #         "beacon_type": "qbudget",
 #         "attacker_type": "random",
 #         "beacon_resume": None,
-#         "attacker_resume": "/data6/sobhan/Beacons/results/train/run89/weights/PPO_attacker0.pth"
+#         "attacker_resume": "./results/train/run89/weights/PPO_attacker0.pth"
         
 #     },
 #     {
 #         "beacon_type": "truth",
 #         "attacker_type": "random",
 #         "beacon_resume": None,
-#         "attacker_resume": "/data6/sobhan/Beacons/results/train/run89/weights/PPO_attacker0.pth"
+#         "attacker_resume": "./results/train/run89/weights/PPO_attacker0.pth"
         
 #     },
 #     {
 #         "beacon_type": "baseline",
 #         "attacker_type": "random",
 #         "beacon_resume": None,
-#         "attacker_resume": "/data6/sobhan/Beacons/results/train/run89/weights/PPO_attacker0.pth"
+#         "attacker_resume": "./results/train/run89/weights/PPO_attacker0.pth"
         
 #     },
 #     {
 #         "beacon_type": "strategic",
 #         "attacker_type": "random",
 #         "beacon_resume": None,
-#         "attacker_resume": "/data6/sobhan/Beacons/results/train/run89/weights/PPO_attacker0.pth"
+#         "attacker_resume": "./results/train/run89/weights/PPO_attacker0.pth"
         
 #     },
 #     {
 #         "beacon_type": "random",
 #         "attacker_type": "random",
 #         "beacon_resume": None,
-#         "attacker_resume": "/data6/sobhan/Beacons/results/train/run89/weights/PPO_attacker0.pth"
+#         "attacker_resume": "./results/train/run89/weights/PPO_attacker0.pth"
         
 #     },
 # ]
@@ -312,48 +312,48 @@ def simulate(args, beacon_type, attacker_type, attacker_resume=None, beacon_resu
 #     {
 #         "beacon_type": "agent",
 #         "attacker_type": "random",
-#         "beacon_resume": "/data6/sobhan/Beacons/results/train/run77/weights",
-#         "attacker_resume": "/data6/sobhan/Beacons/results/train/run86/weights/PPO_0.pth"
+#         "beacon_resume": "./results/train/run77/weights",
+#         "attacker_resume": "./results/train/run86/weights/PPO_0.pth"
 #     },
 #     {
 #         "beacon_type": "agent",
 #         "attacker_type": "random",
-#         "beacon_resume": "/data6/sobhan/Beacons/results/train/run89/weights",
-#         "attacker_resume": "/data6/sobhan/Beacons/results/train/run86/weights/PPO_0.pth"
+#         "beacon_resume": "./results/train/run89/weights",
+#         "attacker_resume": "./results/train/run86/weights/PPO_0.pth"
 #     },
 #     {
 #         "beacon_type": "qbudget",
 #         "attacker_type": "random",
 #         "beacon_resume": None,
-#         "attacker_resume": "/data6/sobhan/Beacons/results/train/run89/weights/PPO_attacker0.pth"
+#         "attacker_resume": "./results/train/run89/weights/PPO_attacker0.pth"
         
 #     },
 #     {
 #         "beacon_type": "truth",
 #         "attacker_type": "random",
 #         "beacon_resume": None,
-#         "attacker_resume": "/data6/sobhan/Beacons/results/train/run89/weights/PPO_attacker0.pth"
+#         "attacker_resume": "./results/train/run89/weights/PPO_attacker0.pth"
         
 #     },
 #     {
 #         "beacon_type": "baseline",
 #         "attacker_type": "random",
 #         "beacon_resume": None,
-#         "attacker_resume": "/data6/sobhan/Beacons/results/train/run89/weights/PPO_attacker0.pth"
+#         "attacker_resume": "./results/train/run89/weights/PPO_attacker0.pth"
         
 #     },
 #     {
 #         "beacon_type": "strategic",
 #         "attacker_type": "random",
 #         "beacon_resume": None,
-#         "attacker_resume": "/data6/sobhan/Beacons/results/train/run89/weights/PPO_attacker0.pth"
+#         "attacker_resume": "./results/train/run89/weights/PPO_attacker0.pth"
         
 #     },
 #     {
 #         "beacon_type": "random",
 #         "attacker_type": "random",
 #         "beacon_resume": None,
-#         "attacker_resume": "/data6/sobhan/Beacons/results/train/run89/weights/PPO_attacker0.pth"
+#         "attacker_resume": "./results/train/run89/weights/PPO_attacker0.pth"
 #     },
 # ]
 
@@ -363,38 +363,38 @@ def simulate(args, beacon_type, attacker_type, attacker_resume=None, beacon_resu
 #     {
 #         "beacon_type": "agent",
 #         "attacker_type": "optimal",
-#         "beacon_resume": "/data6/sobhan/Beacons/results/train/run96/weights/25000",
+#         "beacon_resume": "./results/train/run96/weights/25000",
 #         "attacker_resume": None
 #     },
 #     {
 #         "beacon_type": "agent",
 #         "attacker_type": "agent",
-#         "beacon_resume": "/data6/sobhan/Beacons/results/train/run96/weights/25000",
-#         "attacker_resume": "/data6/sobhan/Beacons/results/train/run86/weights/PPO_0.pth"
+#         "beacon_resume": "./results/train/run96/weights/25000",
+#         "attacker_resume": "./results/train/run86/weights/PPO_0.pth"
 #     },
 #     {
 #         "beacon_type": "agent",
 #         "attacker_type": "agent",
-#         "beacon_resume": "/data6/sobhan/Beacons/results/train/run96/weights/25000",
-#         "attacker_resume": "/data6/sobhan/Beacons/results/train/run96/weights/25000/PPO_0.pth"
+#         "beacon_resume": "./results/train/run96/weights/25000",
+#         "attacker_resume": "./results/train/run96/weights/25000/PPO_0.pth"
 #     },
 #     {
 #         "beacon_type": "agent",
 #         "attacker_type": "optimal",
-#         "beacon_resume": "/data6/sobhan/Beacons/results/train/run98/weights",
+#         "beacon_resume": "./results/train/run98/weights",
 #         "attacker_resume": None
 #     },
 #     {
 #         "beacon_type": "agent",
 #         "attacker_type": "agent",
-#         "beacon_resume": "/data6/sobhan/Beacons/results/train/run98/weights",
-#         "attacker_resume": "/data6/sobhan/Beacons/results/train/run86/weights/PPO_0.pth"
+#         "beacon_resume": "./results/train/run98/weights",
+#         "attacker_resume": "./results/train/run86/weights/PPO_0.pth"
 #     },
 #     {
 #         "beacon_type": "agent",
 #         "attacker_type": "agent",
-#         "beacon_resume": "/data6/sobhan/Beacons/results/train/run98/weights",
-#         "attacker_resume": "/data6/sobhan/Beacons/results/train/run96/weights/25000/PPO_0.pth"
+#         "beacon_resume": "./results/train/run98/weights",
+#         "attacker_resume": "./results/train/run96/weights/25000/PPO_0.pth"
 #     },
 # ]
 
@@ -403,42 +403,42 @@ def simulate(args, beacon_type, attacker_type, attacker_resume=None, beacon_resu
 #     {
 #         "beacon_type": "agent",
 #         "attacker_type": "random",
-#         "beacon_resume": "/data6/sobhan/Beacons/results/train/run77/weights",
+#         "beacon_resume": "./results/train/run77/weights",
 #         "attacker_resume": None,
 #         "user_risk": 0.2
 #     },
 #     {
 #         "beacon_type": "agent",
 #         "attacker_type": "random",
-#         "beacon_resume": "/data6/sobhan/Beacons/results/train/run89/weights",
+#         "beacon_resume": "./results/train/run89/weights",
 #         "attacker_resume": None,
 #         "user_risk": 0.2
 #     },
 #         {
 #         "beacon_type": "agent",
 #         "attacker_type": "random",
-#         "beacon_resume": "/data6/sobhan/Beacons/results/train/run77/weights",
+#         "beacon_resume": "./results/train/run77/weights",
 #         "attacker_resume": None,
 #         "user_risk": 0.6
 #     },
 #     {
 #         "beacon_type": "agent",
 #         "attacker_type": "random",
-#         "beacon_resume": "/data6/sobhan/Beacons/results/train/run89/weights",
+#         "beacon_resume": "./results/train/run89/weights",
 #         "attacker_resume": None,
 #         "user_risk": 0.6
 #     },
 #             {
 #         "beacon_type": "agent",
 #         "attacker_type": "random",
-#         "beacon_resume": "/data6/sobhan/Beacons/results/train/run77/weights",
+#         "beacon_resume": "./results/train/run77/weights",
 #         "attacker_resume": None,
 #         "user_risk": 1
 #     },
 #     {
 #         "beacon_type": "agent",
 #         "attacker_type": "random",
-#         "beacon_resume": "/data6/sobhan/Beacons/results/train/run89/weights",
+#         "beacon_resume": "./results/train/run89/weights",
 #         "attacker_resume": None,
 #         "user_risk": 1
 #     },
@@ -448,43 +448,43 @@ evaluations = [
     {
         "beacon_type": "agent",
         "attacker_type": "optimal",
-        "beacon_resume": "/data6/sobhan/Beacons/results/train/run109/weights",
-        "attacker_resume": "/data6/sobhan/Beacons/results/train/run86/weights/PPO_0.pth",
+        "beacon_resume": "./results/train/run109/weights",
+        "attacker_resume": "./results/train/run86/weights/PPO_0.pth",
         "user_risk": 1
     },
     {
         "beacon_type": "agent",
         "attacker_type": "optimal",
-        "beacon_resume": "/data6/sobhan/Beacons/results/train/run106/weights/15000",
-        "attacker_resume": "/data6/sobhan/Beacons/results/train/run86/weights/PPO_0.pth",
+        "beacon_resume": "./results/train/run106/weights/15000",
+        "attacker_resume": "./results/train/run86/weights/PPO_0.pth",
         "user_risk": 1
     },
     {
         "beacon_type": "agent",
         "attacker_type": "malin",
-        "beacon_resume": "/data6/sobhan/Beacons/results/train/run106/weights/15000",
-        "attacker_resume": "/data6/sobhan/Beacons/results/train/run86/weights/PPO_0.pth",
+        "beacon_resume": "./results/train/run106/weights/15000",
+        "attacker_resume": "./results/train/run86/weights/PPO_0.pth",
         "user_risk": 1
     },
     {
         "beacon_type": "qbudget",
         "attacker_type": "optimal",
         "beacon_resume": None,
-        "attacker_resume": "/data6/sobhan/Beacons/results/train/run86/weights/PPO_0.pth",
+        "attacker_resume": "./results/train/run86/weights/PPO_0.pth",
         "user_risk": 1
     },
     {
         "beacon_type": "truth",
         "attacker_type": "optimal",
         "beacon_resume": None,
-        "attacker_resume": "/data6/sobhan/Beacons/results/train/run86/weights/PPO_0.pth",
+        "attacker_resume": "./results/train/run86/weights/PPO_0.pth",
         "user_risk": 1
     },
     {
         "beacon_type": "baseline",
         "attacker_type": "optimal",
         "beacon_resume": None,
-        "attacker_resume": "/data6/sobhan/Beacons/results/train/run86/weights/PPO_0.pth",
+        "attacker_resume": "./results/train/run86/weights/PPO_0.pth",
         "user_risk": 1
     },
 
@@ -492,14 +492,14 @@ evaluations = [
         "beacon_type": "strategic",
         "attacker_type": "optimal",
         "beacon_resume": None,
-        "attacker_resume": "/data6/sobhan/Beacons/results/train/run86/weights/PPO_0.pth",
+        "attacker_resume": "./results/train/run86/weights/PPO_0.pth",
         "user_risk": 1
     },
     {
         "beacon_type": "random",
         "attacker_type": "optimal",
         "beacon_resume": None,
-        "attacker_resume": "/data6/sobhan/Beacons/results/train/run86/weights/PPO_0.pth",
+        "attacker_resume": "./results/train/run86/weights/PPO_0.pth",
         "user_risk": 1
     },
 ]
@@ -530,5 +530,5 @@ data_dict = {
 }
 
 # Save the dictionary to a pickle file
-with open('/data6/sobhan/Beacons/results/binary/optimal.pkl', 'wb') as f:
+with open('./results/binary/optimal.pkl', 'wb') as f:
     pickle.dump(data_dict, f)
