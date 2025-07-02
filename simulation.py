@@ -460,6 +460,13 @@ evaluations = [
         "user_risk": 1
     },
     {
+        "beacon_type": "agent",
+        "attacker_type": "malin",
+        "beacon_resume": "/data6/sobhan/Beacons/results/train/run106/weights/15000",
+        "attacker_resume": "/data6/sobhan/Beacons/results/train/run86/weights/PPO_0.pth",
+        "user_risk": 1
+    },
+    {
         "beacon_type": "qbudget",
         "attacker_type": "optimal",
         "beacon_resume": None,
