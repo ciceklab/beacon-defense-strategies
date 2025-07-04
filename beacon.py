@@ -190,7 +190,7 @@ class Beacon():
             min_LRT = torch.min(self.beacon_lrts)
             # Malin's strategy: If the MAF is less than 0.5, return 1, else return 0
             if min_LRT < self.theta:
-                return 1
+                return 0
 
             return 1
 
