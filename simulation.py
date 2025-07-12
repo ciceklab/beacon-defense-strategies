@@ -94,7 +94,7 @@ import os
 import joblib
 
 # Cache file path
-cache_path = "./dataset/binary_cache.joblib"
+cache_path = "../binary_cache.joblib"
 
 # Check if the cached file exists
 if os.path.exists(cache_path):
@@ -444,62 +444,64 @@ def simulate(args, beacon_type, attacker_type, attacker_resume=None, beacon_resu
 #     },
 # ]
 
+# evaluations = [
+#     {
+#         "beacon_type": "OG-theta",
+#         "attacker_type": "optimal",
+#         "beacon_resume": "./results/train/",
+#         "attacker_resume": None,
+#         "user_risk": 1
+#     },
+#     {
+#         "beacon_type": "OG-theta",
+#         "attacker_type": "agent",
+#         "beacon_resume": None,
+#         "attacker_resume": "./weights/SBA.pth",
+#         "user_risk": 1
+#     },
+#     {
+#         "beacon_type": "OG-theta",
+#         "attacker_type": "agent",
+#         "beacon_resume": None,
+#         "attacker_resume": "./weights/GBA.pth",
+#         "user_risk": 1
+#     },
+#     {
+#         "beacon_type": "OG-theta",
+#         "attacker_type": "random",
+#         "beacon_resume": None,
+#         "attacker_resume": None,
+#         "user_risk": 1
+#     },
+# ]
+
 evaluations = [
     {
-        "beacon_type": "agent",
+        "beacon_type": "OG-K",
         "attacker_type": "optimal",
-        "beacon_resume": "./results/train/run109/weights",
-        "attacker_resume": "./results/train/run86/weights/PPO_0.pth",
+        "beacon_resume": "./results/train/",
+        "attacker_resume": None,
         "user_risk": 1
     },
     {
-        "beacon_type": "agent",
-        "attacker_type": "optimal",
-        "beacon_resume": "./results/train/run106/weights/15000",
-        "attacker_resume": "./results/train/run86/weights/PPO_0.pth",
-        "user_risk": 1
-    },
-    {
-        "beacon_type": "agent",
-        "attacker_type": "malin",
-        "beacon_resume": "./results/train/run106/weights/15000",
-        "attacker_resume": "./results/train/run86/weights/PPO_0.pth",
-        "user_risk": 1
-    },
-    {
-        "beacon_type": "qbudget",
-        "attacker_type": "optimal",
+        "beacon_type": "OG-K",
+        "attacker_type": "agent",
         "beacon_resume": None,
-        "attacker_resume": "./results/train/run86/weights/PPO_0.pth",
+        "attacker_resume": "./weights/SBA.pth",
         "user_risk": 1
     },
     {
-        "beacon_type": "truth",
-        "attacker_type": "optimal",
+        "beacon_type": "OG-K",
+        "attacker_type": "agent",
         "beacon_resume": None,
-        "attacker_resume": "./results/train/run86/weights/PPO_0.pth",
+        "attacker_resume": "./weights/GBA.pth",
         "user_risk": 1
     },
     {
-        "beacon_type": "baseline",
-        "attacker_type": "optimal",
+        "beacon_type": "OG-K",
+        "attacker_type": "random",
         "beacon_resume": None,
-        "attacker_resume": "./results/train/run86/weights/PPO_0.pth",
-        "user_risk": 1
-    },
-
-    {
-        "beacon_type": "strategic",
-        "attacker_type": "optimal",
-        "beacon_resume": None,
-        "attacker_resume": "./results/train/run86/weights/PPO_0.pth",
-        "user_risk": 1
-    },
-    {
-        "beacon_type": "random",
-        "attacker_type": "optimal",
-        "beacon_resume": None,
-        "attacker_resume": "./results/train/run86/weights/PPO_0.pth",
+        "attacker_resume": None,
         "user_risk": 1
     },
 ]
@@ -530,5 +532,5 @@ data_dict = {
 }
 
 # Save the dictionary to a pickle file
-with open('./results/binary/optimal.pkl', 'wb') as f:
+with open('./results/binary/ref-10.pkl', 'wb') as f:
     pickle.dump(data_dict, f)

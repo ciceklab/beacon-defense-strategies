@@ -10,7 +10,7 @@ import torch
 from utils import calculate_ind_lrt, calculate_pvalues
 
 class Beacon():
-    # Beacon type can be one of the following: baseline, strategic, qbudget, malin, random, truth, beacon_strategy
+    # Beacon type can be one of the following: baseline, strategic, qbudget, OG-theta, OG-K, random, truth, beacon_strategy
     def __init__(self, args, case, control, mafs, victim_id):
         self.args = args
         self.mafs = mafs
@@ -43,9 +43,12 @@ class Beacon():
             initial_budget = -torch.log(torch.tensor(p))
             self.budgets = torch.full(size=(self.args.beacon_size,), fill_value=initial_budget)
 
-        if self.args.beacon_type == "malin":
+        if self.args.beacon_type == "OG-theta":
             # TODO: Make these parameters configurable
             self.theta = -1000
+            
+        if self.args.beacon_type == "OG-K":
+            self.K = 5
         
 
 
@@ -186,12 +189,23 @@ class Beacon():
             else: 
                 return 1
             
-        if self.args.beacon_type == "malin":
+        if self.args.beacon_type == "OG-theta":
             min_LRT = torch.min(self.beacon_lrts)
             # Malin's strategy: If the MAF is less than 0.5, return 1, else return 0
             if min_LRT < self.theta:
                 return 0
 
+            return 1
+        
+        if self.args.beacon_type == "OG-K":
+            low_control_LRTs, _ = torch.topk(self.control_lrts, k=self.K, largest=False)
+            mean_LRTs = torch.mean(low_control_LRTs)
+            
+            min_LRT = torch.min(self.beacon_lrts)
+            
+            if min_LRT < mean_LRTs:
+                return 0
+            
             return 1
 
 
