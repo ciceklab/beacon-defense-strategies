@@ -10,6 +10,8 @@ import torch
 from utils import calculate_ind_lrt, calculate_pvalues
 
 class Beacon():
+    error = 0.001
+    
     # Beacon type can be one of the following: baseline, strategic, qbudget, OG-theta, OG-K, random, truth, beacon_strategy
     def __init__(self, args, case, control, mafs, victim_id):
         self.args = args
@@ -48,7 +50,8 @@ class Beacon():
             self.theta = -1000
             
         if self.args.beacon_type == "OG-K":
-            self.K = 5
+            self._init_OG_beacon()
+            self.K = 10
         
 
 
@@ -197,17 +200,33 @@ class Beacon():
 
             return 1
         
+#         if self.args.beacon_type == "OG-K":
+#             low_control_LRTs, _ = torch.topk(self.control_lrts, k=self.K, largest=False)
+#             mean_LRTs = torch.mean(low_control_LRTs)
+            
+#             min_LRT = torch.min(self.beacon_lrts)
+            
+#             if min_LRT < mean_LRTs:
+#                 return 0
+            
+#             return 1
+        
         if self.args.beacon_type == "OG-K":
-            low_control_LRTs, _ = torch.topk(self.control_lrts, k=self.K, largest=False)
-            mean_LRTs = torch.mean(low_control_LRTs)
+            self.eta_b += self.eta_in_beac[:, attacker_action]
+            self.eta_nb += self.eta_not_in_beac[:, attacker_action]
             
-            min_LRT = torch.min(self.beacon_lrts)
+            k_low_eta_nb, _ = torch.topk(self.eta_nb, k=self.K, largest=False)
+            k_low_delt_nb, _ = torch.topk(self.delt_nb, k=self.K, largest=False)
             
-            if min_LRT < mean_LRTs:
+            self.eta_n_mean = torch.mean(k_low_eta_nb)
+            self.delt_n_mean = torch.mean(k_low_delt_nb)
+            
+            if ((self.delt_b - self.delt_n_mean) >= (self.eta_n_mean - self.eta_b)).all() == False:
+                self.delt_b += self.Delt_in_Beac[:, attacker_action]
+                self.delt_nb += self.Delt_Not_in_Beac[:, attacker_action]
                 return 0
             
             return 1
-
 
     def _init_strategic_beacon(self, k=0.05):
         beacon_lrts = self._calc_group_lrts_all_snps(self.beacon_case, self.mafs, 1)
@@ -232,11 +251,45 @@ class Beacon():
     def _init_baseline_beacon(self, k=10):
         un_mafs = torch.unique(torch.as_tensor(self.mafs))
         return un_mafs[1:int(k / 100 * un_mafs.numel())]
+    
+    def _init_OG_beacon(self):
+        beacon_size = self.args.beacon_size
+        control_size = self.args.b_control_size
+        
+        x_beacon = torch.any(self.beacon_case, 0).to(torch.int)
+        self.eta_in_beac = (self.beacon_case * self.A(self.mafs, beacon_size) * x_beacon) + (self.B(self.mafs, beacon_size) * (1 - x_beacon) * self.beacon_case)
+        self.eta_not_in_beac = (self.beacon_control * self.A(self.mafs, control_size) * x_beacon) + (self.B(self.mafs, control_size) * (1 - x_beacon) * self.beacon_control)
+        
+        self.Delt_in_Beac = (self.beacon_case * self.B(self.mafs, beacon_size)) - (self.beacon_case * self.A(self.mafs, beacon_size) * x_beacon)
+        self.Delt_Not_in_Beac = (self.beacon_control * self.B(self.mafs, control_size)) - (self.beacon_control * self.A(self.mafs, control_size) * x_beacon)
+        
+        self.x_beacon = x_beacon
+        self.delt_b = torch.zeros(beacon_size)
+        self.eta_b = torch.zeros(beacon_size)
+        self.delt_nb = torch.zeros(control_size)
+        self.eta_nb = torch.zeros(control_size)
+        
+#         self.positives = torch.sum((self.Delt_in_Beac - self.Delt_Not_in_Beac) >= 0, dim=0) 
+#         self.selected_snps = torch.where(x_beacon == 1)[0]
+
+    ###
+    # OG functions
+    def D(self, f, n):
+        return torch.clip(torch.pow((1 - f), (2 * n)), 5e-307, 0.999999)
+
+    def A(self, f, n):
+        delta = self.error
+        return torch.log(1 - self.D(f, n)) - torch.log(1 - (delta * self.D(f, n - 1)))
+
+    def B(self, f, n):
+        delta = self.error
+        return torch.log(self.D(f, n)) - torch.log(delta * self.D(f, n - 1))
+        
 
     #################################################################################################
     #LRT PVALUES
     def _calc_group_lrts_all_snps(self, genome, maf, response) -> torch.Tensor:
-        error = 0.001
+        error = self.error
 
         one_minus_maf = (1 - maf)
         DN_i = one_minus_maf.pow(2 * self.args.beacon_size)
@@ -249,7 +302,7 @@ class Beacon():
         return lrt
 
     def _calc_group_lrts(self, genome, maf, response, prev_beacon_lrts, update_qb=False) -> torch.Tensor:
-        error = 0.001
+        error = self.error
 
         one_minus_maf = (1 - maf[-1])  # Last MAF value
         DN_i = one_minus_maf.pow(2 * self.args.beacon_size)
