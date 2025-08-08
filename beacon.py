@@ -50,8 +50,8 @@ class Beacon():
             self.theta = -1000
             
         if self.args.beacon_type == "OG-K":
+            self.K = 1
             self._init_OG_beacon()
-            self.K = 10
         
 
 
@@ -221,7 +221,7 @@ class Beacon():
             self.eta_n_mean = torch.mean(k_low_eta_nb)
             self.delt_n_mean = torch.mean(k_low_delt_nb)
             
-            if ((self.delt_b - self.delt_n_mean) >= (self.eta_n_mean - self.eta_b)).all() == False:
+            if ((self.delt_b - self.delt_n_mean) >= (self.eta_n_mean - self.eta_b)).all() == False and attacker_action in self.selected_snps:
                 self.delt_b += self.Delt_in_Beac[:, attacker_action]
                 self.delt_nb += self.Delt_Not_in_Beac[:, attacker_action]
                 return 0
@@ -269,8 +269,11 @@ class Beacon():
         self.delt_nb = torch.zeros(control_size)
         self.eta_nb = torch.zeros(control_size)
         
-#         self.positives = torch.sum((self.Delt_in_Beac - self.Delt_Not_in_Beac) >= 0, dim=0) 
-#         self.selected_snps = torch.where(x_beacon == 1)[0]
+        k_low_delt_nb, _ = torch.topk(self.delt_nb, k=self.K, largest=False)
+        delt_n_mean = torch.mean(k_low_delt_nb)
+        
+        self.positives = torch.sum((self.Delt_in_Beac - delt_n_mean) >= 0, dim=0) 
+        self.selected_snps = torch.where((x_beacon == 1) & (self.positives == beacon_size))[0]
 
     ###
     # OG functions
