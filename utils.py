@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 # import pygame
-from matplotlib_inline.backend_inline import FigureCanvas
+#from matplotlib_inline.backend_inline import FigureCanvas
 import csv
 import seaborn as sns
 import matplotlib.patches as mpatches
@@ -626,7 +626,20 @@ def line_and_bar_plot(line_data, bar_data, labels, title, ylabel_line, ylabel_ba
 def line_and_bar_plot2(line_data, bar_data, labels, title, ylabel_line, ylabel_bar):
     fig, ax1 = plt.subplots()
     
-    color_palette = ["#2E2E2E", "#E74C3C", "#3498DB", "#1ABC9C", "#E67E22", "#F1C40F", "#65879F", "#8B8C89", "#425062", "#8F5C5C", "#CFACAC"]
+#     color_palette = ["#2E2E2E", "#E74C3C", "#3498DB", "#1ABC9C", "#E67E22", "#F1C40F", "#65879F", "#8B8C89", "#425062", "#8F5C5C", "#CFACAC"]\
+    color_palette = [
+        "#377EB8",  # deep blue
+        "#E69F00",  # burnt orange
+        "#009E73",  # bluish-green
+        "#CC79A7",  # reddish-purple
+        "#F0E442",  # mustard yellow
+        "#56B4E9",  # sky blue
+        "#D55E00",  # vermillion
+        "#999999",  # medium gray
+        "#0072B2",  # strong blue
+        "#E41A1C",  # strong red
+        "#4DAF4A"   # green
+    ]
     x_ticks = ['1', '100', '200', '300', '400', '500', '600', '700', '800', '900', '1000']
     classes, stages = line_data.shape
     
@@ -691,8 +704,35 @@ def line_and_bar_plot3(line_data, bar_data, labels, ylabel_line, ylabel_bar):
     # line_data and bar_data should have shapes (4, 7, 11), so we iterate over the first dimension
     num_groups, classes, stages = line_data.shape
     
-    fig, axs = plt.subplots(2, 2)  # Create a 2x2 grid for the panels
-    color_palette = ["#2E2E2E", "#E74C3C", "#3498DB", "#1ABC9C", "#E67E22", "#F1C40F", "#65879F", "#8B8C89", "#425062", "#8F5C5C", "#CFACAC"]
+    fig, axs = plt.subplots(2, 2, constrained_layout=True)  # Create a 2x2 grid for the panels
+#     fig, axs = plt.subplots(2, 2)  # Create a 2x2 grid for the panels
+#   color_palette = ["#2E2E2E", "#E74C3C", "#3498DB", "#1ABC9C", "#E67E22", "#F1C40F", "#65879F", "#8B8C89", "#425062", "#8F5C5C", "#CFACAC"]
+#     color_palette = [
+#         "#377EB8",  # deep blue
+#         "#E69F00",  # burnt orange
+#         "#009E73",  # bluish-green
+#         "#CC79A7",  # reddish-purple
+#         "#F0E442",  # mustard yellow
+#         "#56B4E9",  # sky blue
+#         "#D55E00",  # vermillion
+#         "#999999",  # medium gray
+#         "#0072B2",  # strong blue
+#         "#E41A1C",  # strong red
+#         "#4DAF4A"   # green
+#     ]
+    color_palette = [
+        "#0072B2",  # Blue
+        "#E69F00",  # Orange
+        "#009E73",  # Bluish Green
+        "#CC79A7",  # Reddish Purple
+        "#F0E442",  # Yellow (use with caution on very light backgrounds)
+        "#56B4E9",  # Sky Blue
+        "#D55E00",  # Vermillion
+        "#999999",  # Gray
+        "#000000",   # Black (for strong contrast, if needed for an important category)
+        "red"   # Teal/Cyan
+    ]
+    print(f"Number of available colors: {len(color_palette)}")
     x_ticks = ['1', '100', '200', '300', '400', '500', '600', '700', '800', '900', '1000']
     x_positions = np.arange(stages)
     bar_width = 0.12  # Adjusted Bar width for better clarity
@@ -788,7 +828,7 @@ def line_and_bar_plot3(line_data, bar_data, labels, ylabel_line, ylabel_bar):
     # fig.legend(handles=handles, loc='lower right', ncol=classes, fontsize=23, frameon=False)
     # handles = [mpatches.Patch(facecolor=color_palette[i], label=labels[i], edgecolor='black', linewidth=2, alpha=0.5) for i in range(classes)]
     # fig.legend(handles, labels, loc="lower right", fontsize=15)
-    legend = fig.legend(handles=handles, loc='lower right', bbox_to_anchor=(0.98, 0.03), ncol=4, fontsize=20)  
+    legend = fig.legend(handles=handles, loc='lower right', bbox_to_anchor=(0.98, 0.0), ncol=4, fontsize=20)  
 
     plt.tight_layout()
     plt.show()

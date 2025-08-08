@@ -10,6 +10,9 @@ import torch
 from utils import calculate_ind_lrt, calculate_pvalues
 
 class Beacon():
+    error = 0.001
+    
+    # Beacon type can be one of the following: baseline, strategic, qbudget, OG-theta, OG-K, random, truth, beacon_strategy
     def __init__(self, args, case, control, mafs, victim_id):
         self.args = args
         self.mafs = mafs
@@ -32,15 +35,23 @@ class Beacon():
 
         ######################## Init Beacons
         if self.args.beacon_type == "baseline":
-            self.baseline_mafs = self._init_baseline_beaon()
+            self.baseline_mafs = self._init_baseline_beacon()
 
         if self.args.beacon_type == "strategic":
-            self.strategy_positions = self._init_strategic_beaon()
+            self.strategy_positions = self._init_strategic_beacon()
 
         if self.args.beacon_type == "qbudget":
             p = 0.1
             initial_budget = -torch.log(torch.tensor(p))
             self.budgets = torch.full(size=(self.args.beacon_size,), fill_value=initial_budget)
+
+        if self.args.beacon_type == "OG-theta":
+            # TODO: Make these parameters configurable
+            self.theta = -1000
+            
+        if self.args.beacon_type == "OG-K":
+            self.K = 1
+            self._init_OG_beacon()
         
 
 
@@ -180,8 +191,44 @@ class Beacon():
                 return 0
             else: 
                 return 1
+            
+        if self.args.beacon_type == "OG-theta":
+            min_LRT = torch.min(self.beacon_lrts)
+            # Malin's strategy: If the MAF is less than 0.5, return 1, else return 0
+            if min_LRT < self.theta:
+                return 0
 
-    def _init_strategic_beaon(self, k=0.05):
+            return 1
+        
+#         if self.args.beacon_type == "OG-K":
+#             low_control_LRTs, _ = torch.topk(self.control_lrts, k=self.K, largest=False)
+#             mean_LRTs = torch.mean(low_control_LRTs)
+            
+#             min_LRT = torch.min(self.beacon_lrts)
+            
+#             if min_LRT < mean_LRTs:
+#                 return 0
+            
+#             return 1
+        
+        if self.args.beacon_type == "OG-K":
+            self.eta_b += self.eta_in_beac[:, attacker_action]
+            self.eta_nb += self.eta_not_in_beac[:, attacker_action]
+            
+            k_low_eta_nb, _ = torch.topk(self.eta_nb, k=self.K, largest=False)
+            k_low_delt_nb, _ = torch.topk(self.delt_nb, k=self.K, largest=False)
+            
+            self.eta_n_mean = torch.mean(k_low_eta_nb)
+            self.delt_n_mean = torch.mean(k_low_delt_nb)
+            
+            if ((self.delt_b - self.delt_n_mean) >= (self.eta_n_mean - self.eta_b)).all() == False and attacker_action in self.selected_snps:
+                self.delt_b += self.Delt_in_Beac[:, attacker_action]
+                self.delt_nb += self.Delt_Not_in_Beac[:, attacker_action]
+                return 0
+            
+            return 1
+
+    def _init_strategic_beacon(self, k=0.05):
         beacon_lrts = self._calc_group_lrts_all_snps(self.beacon_case, self.mafs, 1)
         control_lrts = self._calc_group_lrts_all_snps(self.beacon_control, self.mafs, 1)
         discriminative_powers = beacon_lrts.mean(dim=0) - control_lrts.mean(dim=0)
@@ -201,14 +248,51 @@ class Beacon():
         return sorted_gene_indices[:K]
 
 
-    def _init_baseline_beaon(self, k=10):
+    def _init_baseline_beacon(self, k=10):
         un_mafs = torch.unique(torch.as_tensor(self.mafs))
         return un_mafs[1:int(k / 100 * un_mafs.numel())]
+    
+    def _init_OG_beacon(self):
+        beacon_size = self.args.beacon_size
+        control_size = self.args.b_control_size
+        
+        x_beacon = torch.any(self.beacon_case, 0).to(torch.int)
+        self.eta_in_beac = (self.beacon_case * self.A(self.mafs, beacon_size) * x_beacon) + (self.B(self.mafs, beacon_size) * (1 - x_beacon) * self.beacon_case)
+        self.eta_not_in_beac = (self.beacon_control * self.A(self.mafs, control_size) * x_beacon) + (self.B(self.mafs, control_size) * (1 - x_beacon) * self.beacon_control)
+        
+        self.Delt_in_Beac = (self.beacon_case * self.B(self.mafs, beacon_size)) - (self.beacon_case * self.A(self.mafs, beacon_size) * x_beacon)
+        self.Delt_Not_in_Beac = (self.beacon_control * self.B(self.mafs, control_size)) - (self.beacon_control * self.A(self.mafs, control_size) * x_beacon)
+        
+        self.x_beacon = x_beacon
+        self.delt_b = torch.zeros(beacon_size)
+        self.eta_b = torch.zeros(beacon_size)
+        self.delt_nb = torch.zeros(control_size)
+        self.eta_nb = torch.zeros(control_size)
+        
+        k_low_delt_nb, _ = torch.topk(self.delt_nb, k=self.K, largest=False)
+        delt_n_mean = torch.mean(k_low_delt_nb)
+        
+        self.positives = torch.sum((self.Delt_in_Beac - delt_n_mean) >= 0, dim=0) 
+        self.selected_snps = torch.where((x_beacon == 1) & (self.positives == beacon_size))[0]
+
+    ###
+    # OG functions
+    def D(self, f, n):
+        return torch.clip(torch.pow((1 - f), (2 * n)), 5e-307, 0.999999)
+
+    def A(self, f, n):
+        delta = self.error
+        return torch.log(1 - self.D(f, n)) - torch.log(1 - (delta * self.D(f, n - 1)))
+
+    def B(self, f, n):
+        delta = self.error
+        return torch.log(self.D(f, n)) - torch.log(delta * self.D(f, n - 1))
+        
 
     #################################################################################################
     #LRT PVALUES
     def _calc_group_lrts_all_snps(self, genome, maf, response) -> torch.Tensor:
-        error = 0.001
+        error = self.error
 
         one_minus_maf = (1 - maf)
         DN_i = one_minus_maf.pow(2 * self.args.beacon_size)
@@ -221,7 +305,7 @@ class Beacon():
         return lrt
 
     def _calc_group_lrts(self, genome, maf, response, prev_beacon_lrts, update_qb=False) -> torch.Tensor:
-        error = 0.001
+        error = self.error
 
         one_minus_maf = (1 - maf[-1])  # Last MAF value
         DN_i = one_minus_maf.pow(2 * self.args.beacon_size)
