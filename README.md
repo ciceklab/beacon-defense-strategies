@@ -65,7 +65,7 @@ conda activate beacon
 The following command trains both attacker and beacon models. Specify options like agent type and update frequency.
 
 ```shell
-python train.py --train "both" --episodes 100000 --update_freq 10 --max_queries 100
+python main.py --train "both" --episodes 100000 --update_freq 10 --max_queries 100
 ```
 
 #### Key Arguments
