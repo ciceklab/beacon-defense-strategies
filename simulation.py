@@ -46,8 +46,8 @@ def args_create():
     # Env Properties
     parser.add_argument('--a_control_size', default=50, type=int, help='Attack Control group size')
     parser.add_argument('--b_control_size', default=50, type=int, help='Beacon Control group size')
-    parser.add_argument('--gene_size', default=100000, type=int, help='States gene size')
-    parser.add_argument('--beacon_size', default=30, type=int, help='Beacon population size')
+    parser.add_argument('--gene_size', default=4029840, type=int, help='States gene size')
+    parser.add_argument('--beacon_size', default=40, type=int, help='Beacon population size')
     parser.add_argument('--victim_prob', default=1, type=float, help='Victim inside beacon or not!')
     parser.add_argument('--max_queries', default=1000, type=int, help='Maximum queries per episode')
     parser.add_argument('--binary', default=True, type=bool, help='Binary queries')
@@ -475,33 +475,203 @@ def simulate(args, beacon_type, attacker_type, attacker_resume=None, beacon_resu
 #     },
 # ]
 
+# evaluations = [
+#     {
+#         "beacon_type": "OG-K",
+#         "attacker_type": "optimal",
+#         "beacon_resume": "./results/train/",
+#         "attacker_resume": None,
+#         "user_risk": 1
+#     },
+#     {
+#         "beacon_type": "OG-K",
+#         "attacker_type": "agent",
+#         "beacon_resume": None,
+#         "attacker_resume": "./weights/SBA.pth",
+#         "user_risk": 1
+#     },
+#     {
+#         "beacon_type": "OG-K",
+#         "attacker_type": "agent",
+#         "beacon_resume": None,
+#         "attacker_resume": "./weights/GBA.pth",
+#         "user_risk": 1
+#     },
+#     {
+#         "beacon_type": "OG-K",
+#         "attacker_type": "random",
+#         "beacon_resume": None,
+#         "attacker_resume": None,
+#         "user_risk": 1
+#     },
+# ]
+
+# evaluations = [
+#     {
+#         "beacon_type": "agent",
+#         "attacker_type": "regular",
+#         "beacon_resume": "./weights/SBD",
+#         "attacker_resume": None,
+#         "query_binary_path": "./data/regular_queries.npy",
+#         "user_risk": 1     
+#     },
+#     {
+#         "beacon_type": "agent",
+#         "attacker_type": "regular",
+#         "beacon_resume": "./weights/GBD",
+#         "attacker_resume": None,
+#         "query_binary_path": "./data/regular_queries.npy",
+#         "user_risk": 1
+#     },
+#     {
+#         "beacon_type": "truth",
+#         "attacker_type": "regular",
+#         "beacon_resume": None,
+#         "attacker_resume": None,
+#         "query_binary_path": "./data/regular_queries.npy",
+#         "user_risk": 1 
+#     },
+#     {
+#         "beacon_type": "baseline",
+#         "attacker_type": "regular",
+#         "beacon_resume": None,
+#         "attacker_resume": None,
+#         "query_binary_path": "./data/regular_queries.npy",
+#         "user_risk": 1
+#     },
+#     {
+#         "beacon_type": "qbudget",
+#         "attacker_type": "regular",
+#         "beacon_resume": None,
+#         "attacker_resume": None,
+#         "query_binary_path": "./data/regular_queries.npy",
+#         "user_risk": 1
+#     },
+#     {
+#         "beacon_type": "random",
+#         "attacker_type": "regular",
+#         "beacon_resume": None,
+#         "attacker_resume": None,
+#         "query_binary_path": "./data/regular_queries.npy",
+#         "user_risk": 1
+#     },
+#     {
+#         "beacon_type": "strategic",
+#         "attacker_type": "regular",
+#         "beacon_resume": None,
+#         "attacker_resume": None,
+#         "query_binary_path": "./data/regular_queries.npy",
+#         "user_risk": 1
+        
+#     },
+#     {
+#         "beacon_type": "rtf",
+#         "attacker_type": "regular",
+#         "beacon_resume": None,
+#         "attacker_resume": None,
+#         "query_binary_path": "./data/regular_queries.npy",
+#         "user_risk": 1
+        
+#     },
+#     {
+#         "beacon_type": "OG-theta",
+#         "attacker_type": "regular",
+#         "beacon_resume": None,
+#         "attacker_resume": None,
+#         "query_binary_path": "./data/regular_queries.npy",
+#         "user_risk": 1
+#     },
+#     {
+#         "beacon_type": "OG-K",
+#         "attacker_type": "regular",
+#         "beacon_resume": None,
+#         "attacker_resume": None,
+#         "query_binary_path": "./data/regular_queries.npy",
+#         "user_risk": 1
+#     },
+# ]
+
 evaluations = [
     {
-        "beacon_type": "OG-K",
-        "attacker_type": "optimal",
-        "beacon_resume": "./results/train/",
+        "beacon_type": "agent",
+        "attacker_type": "regular",
+        "beacon_resume": "./weights/SBD",
         "attacker_resume": None,
+        "query_binary_path": "./data/regular_queries_asthema.npy",
+        "user_risk": 1     
+    },
+    {
+        "beacon_type": "agent",
+        "attacker_type": "regular",
+        "beacon_resume": "./weights/GBD",
+        "attacker_resume": None,
+        "query_binary_path": "./data/regular_queries_asthema.npy",
         "user_risk": 1
     },
     {
-        "beacon_type": "OG-K",
-        "attacker_type": "agent",
-        "beacon_resume": None,
-        "attacker_resume": "./weights/SBA.pth",
-        "user_risk": 1
-    },
-    {
-        "beacon_type": "OG-K",
-        "attacker_type": "agent",
-        "beacon_resume": None,
-        "attacker_resume": "./weights/GBA.pth",
-        "user_risk": 1
-    },
-    {
-        "beacon_type": "OG-K",
-        "attacker_type": "random",
+        "beacon_type": "truth",
+        "attacker_type": "regular",
         "beacon_resume": None,
         "attacker_resume": None,
+        "query_binary_path": "./data/regular_queries_asthema.npy",
+        "user_risk": 1 
+    },
+    {
+        "beacon_type": "baseline",
+        "attacker_type": "regular",
+        "beacon_resume": None,
+        "attacker_resume": None,
+        "query_binary_path": "./data/regular_queries_asthema.npy",
+        "user_risk": 1
+    },
+    {
+        "beacon_type": "qbudget",
+        "attacker_type": "regular",
+        "beacon_resume": None,
+        "attacker_resume": None,
+        "query_binary_path": "./data/regular_queries_asthema.npy",
+        "user_risk": 1
+    },
+    {
+        "beacon_type": "random",
+        "attacker_type": "regular",
+        "beacon_resume": None,
+        "attacker_resume": None,
+        "query_binary_path": "./data/regular_queries_asthema.npy",
+        "user_risk": 1
+    },
+    {
+        "beacon_type": "strategic",
+        "attacker_type": "regular",
+        "beacon_resume": None,
+        "attacker_resume": None,
+        "query_binary_path": "./data/regular_queries_asthema.npy",
+        "user_risk": 1
+        
+    },
+    {
+        "beacon_type": "rtf",
+        "attacker_type": "regular",
+        "beacon_resume": None,
+        "attacker_resume": None,
+        "query_binary_path": "./data/regular_queries_asthema.npy",
+        "user_risk": 1
+        
+    },
+    {
+        "beacon_type": "OG-theta",
+        "attacker_type": "regular",
+        "beacon_resume": None,
+        "attacker_resume": None,
+        "query_binary_path": "./data/regular_queries_asthema.npy",
+        "user_risk": 1
+    },
+    {
+        "beacon_type": "OG-K",
+        "attacker_type": "regular",
+        "beacon_resume": None,
+        "attacker_resume": None,
+        "query_binary_path": "./data/regular_queries_asthema.npy",
         "user_risk": 1
     },
 ]
@@ -512,9 +682,9 @@ privacies=[]
 utilities=[]
 utilities2=[]   
 
-
 for eval in evaluations:
     print(eval)
+    args.query_binary_path = eval['query_binary_path'] if 'query_binary_path' in eval else None
     res = simulate(args, beacon_type=eval["beacon_type"], attacker_type=eval["attacker_type"], beacon_resume=eval['beacon_resume'], attacker_resume=eval["attacker_resume"], user_risk=eval["user_risk"])
     beacon_rewards.append(res[0])
     attacker_rewards.append(res[1])
@@ -532,5 +702,5 @@ data_dict = {
 }
 
 # Save the dictionary to a pickle file
-with open('./results/binary/ref-10.pkl', 'wb') as f:
+with open('./results/binary/regular-asthema.pkl', 'wb') as f:
     pickle.dump(data_dict, f)

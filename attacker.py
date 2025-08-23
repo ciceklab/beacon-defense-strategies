@@ -42,6 +42,9 @@ class Attacker():
         if self.args.attacker_type == "random":
             self.random_queries = self._init_random(self.args.user_risk)
 
+        if self.args.attacker_type == "regular":
+            self.regular_queries = self._init_regular(self.args.query_binary_path)
+
         # Initializing the control LRTS
         self.control_lrts = torch.zeros(size=(self.args.a_control_size,))
         self.victim_lrt = torch.as_tensor(0)
@@ -151,6 +154,9 @@ class Attacker():
 
         if self.args.attacker_type == "random":
             return self.random_queries[current_step]
+
+        if self.args.attacker_type == "regular":
+            return self.regular_queries[current_step]
 
         if self.args.attacker_type == "SF":
             return self.diff_discriminative_queries[current_step]
@@ -322,6 +328,15 @@ class Attacker():
         queries = indices[samples]
         return queries
 
-        
+    def _init_regular(self, query_binary_path):
+        if not os.path.exists(query_binary_path):
+            raise FileNotFoundError(f"Query binary file not found at {query_binary_path}")
+
+        queries = np.load(query_binary_path, allow_pickle=True)
+
+        if len(queries) < self.args.max_queries:
+            raise ValueError(f"Insufficient queries in the binary file. Expected at least {self.args.max_queries}, got {len(queries)}.")
+
+        return torch.from_numpy(queries[:self.args.max_queries]).long()
 
         

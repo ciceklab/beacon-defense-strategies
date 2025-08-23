@@ -44,6 +44,11 @@ class Beacon():
             p = 0.1
             initial_budget = -torch.log(torch.tensor(p))
             self.budgets = torch.full(size=(self.args.beacon_size,), fill_value=initial_budget)
+            
+        if self.args.beacon_type == "rtf":
+            self.old_pvalues = self.pvalues.clone()
+            self.no_change_count = torch.zeros(size=(self.args.beacon_size,), dtype=torch.long)
+            self.rare_threshold = 0.1
 
         if self.args.beacon_type == "OG-theta":
             # TODO: Make these parameters configurable
@@ -131,6 +136,8 @@ class Beacon():
     # Reward Calculation
     def calc_reward(self, beacon_action)->float:
         done = False
+        if self.args.beacon_type == "rtf":
+            self.old_pvalues = self.pvalues.clone()
         self.pvalues = self._calc_pvalues()
         # preward = torch.min(self.pvalues)
         preward = self.pvalues[self.victim_id]
@@ -191,6 +198,9 @@ class Beacon():
                 return 0
             else: 
                 return 1
+
+        if self.args.beacon_type == "rtf":
+            return self._real_time_flipping(attacker_action)
             
         if self.args.beacon_type == "OG-theta":
             min_LRT = torch.min(self.beacon_lrts)
@@ -363,3 +373,44 @@ class Beacon():
     def _calculate_budget_cost(self, maf_value):
         D_qi = (1 - maf_value).pow(self.args.beacon_size - 1)
         return -torch.log(1 - D_qi)
+
+    def _real_time_flipping(self, attacker_action):
+        maf_value = self.mafs[attacker_action]
+        if maf_value >= self.rare_threshold:
+            return 1
+        has_variant = (self.beacon_case[:, attacker_action] == 1)
+        if not torch.any(has_variant):
+            return 0
+
+        carriers = torch.where(has_variant)[0]
+        # print("Carriers: ", carriers)
+
+        b_lrts_after, c_lrts_after=self.update(1, attacker_action, calculation_mode=True)
+        pvalues_after = calculate_pvalues(b_lrts_after, c_lrts_after, self.args.b_control_size)
+        # print("pvalues_after", pvalues_after)
+        vulnerable_carriers = []
+        for idx in carriers:
+            current_p = pvalues_after[idx].item()
+            old_p = self.pvalues[idx].item()
+            diff_p = abs(current_p - old_p)
+
+            if diff_p < 0.001:
+                self.no_change_count[idx] += 1
+            else:
+                self.no_change_count[idx] = 0
+
+            if (current_p < 0.05) and (self.no_change_count[idx] < 50):
+                vulnerable_carriers.append(idx)
+
+        # print("Vulnerable Carriers: ", vulnerable_carriers)
+        if len(vulnerable_carriers) == 0:
+            return 1
+
+        min_pvalue = min([pvalues_after[i].item() for i in vulnerable_carriers])
+        flip_prob = round((1 - min_pvalue), 1)
+
+        rand_val = random.random()
+        if rand_val < flip_prob:
+            return 0
+        else:
+            return 1
