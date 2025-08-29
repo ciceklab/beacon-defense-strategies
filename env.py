@@ -246,7 +246,65 @@ class Env():
         #     plot_three_lists(self.attacker_prewards, self.attacker_urewards, self.attacker_total, path=self.args.results_dir + "/rewards", label1="Attacker -1 Reward", label2="Attacker beacon action Reward", label3="Total", name="attacker", episode=self.episode, xlabel="Query Number", ylabel='Attacker Rewards')
         # print(beacon_state/)
         return [np.array(beacon_state), beacon_action, beacon_reward, done], [beacon_reward, attacker_reward], done, [self.attacker._calc_pvalue(), beacon_action]
-    
+
+    def step_classifier(self, defender, attacker_agent=None):
+        """
+        Returns:
+            query_state: np.array or torch.Tensor of features for the classifier
+            label: 1 if attacker identified the victim, else 0
+            done: whether episode ended
+            info: optional dictionary with additional info
+        """
+        if defender is None:
+            raise ValueError("Defender model must be provided for step_classifier.")
+        
+        done = False
+        if self.current_step % self.args.print_freq == 0:
+            print(f"--------------------------------Query: {self.current_step+1}---------------------------------")
+
+        # ----------------- Attacker Action -----------------
+        if self.args.attacker_type == "agent":
+            attacker_state = self.attacker.get_state()
+            # attacker_state = torch.flatten(attacker_state).float()
+            # print("Attacker State: ", attacker_state)
+            agent_action = attacker_agent.select_action(attacker_state) 
+            attacker_action = self.attacker.act(self.current_step, agent_action) 
+            # print("Attacker Action: {}, {}".format(attacker_action, agent_action))
+            self.attacker_agent_actions.append(agent_action)
+        else:
+            # attacker_state = self.attacker.get_state()
+            attacker_action = self.attacker.act(self.current_step) 
+            self.attacker_agent_actions.append(attacker_action)
+
+        # ----------------- Beacon Action (optional, for logging) -----------------
+        beacon_state = torch.Tensor(self.beacon.get_state(attacker_action, self.current_step)).to(defender.device)
+        # max_pvalue_change_threshold = 0.3
+        beacon_action = defender.process_query(beacon_state).cpu().detach().squeeze(0)
+
+        # print(f"Attacker Action: Position {attacker_action} ")
+        # print(f"Beacon Action (Defender's output): {beacon_action} ")
+
+        # ----------------- Update States -----------------
+        self.beacon.update(beacon_action=beacon_action, attacker_action=attacker_action)
+        self.attacker.update(beacon_action=beacon_action, attacker_action=attacker_action)
+        self.attacker_actions.append(attacker_action)
+        self.current_step += 1
+
+        _reward, attacker_done, _ = self.attacker.calc_reward(beacon_action, self.current_step)
+
+        # ----------------- Determine Label -----------------
+        label = 1 - int(attacker_done)  # 1 if attacker identified victim, else 0
+        done = done or self.current_step >= self.max_steps
+
+        # ----------------- Prepare Query Features -----------------
+        # query_state = np.array(beacon_state, dtype=np.float32)
+
+        return beacon_state, label, done, {
+            "attacker_action": attacker_action,
+            "beacon_action": beacon_action,
+            "beacon_state": beacon_state
+        }
+
     #################################################################################################
     #Populations
 

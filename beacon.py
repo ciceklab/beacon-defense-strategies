@@ -4,6 +4,7 @@ import os
 import csv
 import math
 import random
+# from classifier import IdentificationRNN, OnlineDefender
 
 import torch
 
@@ -57,6 +58,9 @@ class Beacon():
         if self.args.beacon_type == "OG-K":
             self.K = 1
             self._init_OG_beacon()
+
+        # if self.args.beacon_type == "simple_classifier":
+        #     self.defender = self._init_simple_classifier(self.args.baseline_model_path)
         
 
 
@@ -237,6 +241,12 @@ class Beacon():
                 return 0
             
             return 1
+        
+        # if self.args.beacon_type == "simple_classifier":
+        #     state_vec = torch.tensor(self.get_state(attacker_action, _), dtype=torch.float32)
+
+        #     return self.defender.process_query(state_vec)
+            
 
     def _init_strategic_beacon(self, k=0.05):
         beacon_lrts = self._calc_group_lrts_all_snps(self.beacon_case, self.mafs, 1)
@@ -256,7 +266,6 @@ class Beacon():
         print("Beacon Queries: ", sorted_gene_indices[:K])
 
         return sorted_gene_indices[:K]
-
 
     def _init_baseline_beacon(self, k=10):
         un_mafs = torch.unique(torch.as_tensor(self.mafs))
@@ -284,6 +293,18 @@ class Beacon():
         
         self.positives = torch.sum((self.Delt_in_Beac - delt_n_mean) >= 0, dim=0) 
         self.selected_snps = torch.where((x_beacon == 1) & (self.positives == beacon_size))[0]
+
+    # def _init_simple_classifier(self, path):
+    #     # load a trained model (RNN/MLP)
+    #     self.classifier = IdentificationRNN(
+    #         input_dim=17,   # TODO: fix this
+    #         hidden_dim=64
+    #     )
+    #     self.classifier.load_state_dict(torch.load(path))
+    #     self.classifier.eval()
+
+    #     # wrap in online policy
+    #     self.defender = OnlineDefender(self.classifier, threshold=0.05)
 
     ###
     # OG functions
