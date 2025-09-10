@@ -333,6 +333,7 @@ class Attacker():
             raise FileNotFoundError(f"Query binary file not found at {query_binary_path}")
 
         queries = np.load(query_binary_path, allow_pickle=True)
+        np.random.shuffle(queries)
 
         if len(queries) < self.args.max_queries:
             raise ValueError(f"Insufficient queries in the binary file. Expected at least {self.args.max_queries}, got {len(queries)}.")

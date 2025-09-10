@@ -87,7 +87,10 @@ class Env():
     #RESET STEP
 
     # Reset the environment after an episode
-    def reset(self) -> torch.Tensor:
+    def reset(self, args=None) -> torch.Tensor:
+        if args is not None:
+            self.args = copy.copy(args)
+
         self.episode += 1
 
         # self.args.attacker_type = random.choice(self.attackers)
@@ -247,6 +250,45 @@ class Env():
         # print(beacon_state/)
         return [np.array(beacon_state), beacon_action, beacon_reward, done], [beacon_reward, attacker_reward], done, [self.attacker._calc_pvalue(), beacon_action]
 
+    def step_classifier_new(self, attacker_agent=None):
+        done = False
+
+        if self.args.attacker_type == "agent":
+            attacker_state = self.attacker.get_state()
+            # attacker_state = torch.flatten(attacker_state).float()
+            # print("Attacker State: ", attacker_state)
+            agent_action = attacker_agent.select_action(attacker_state) 
+            attacker_action = self.attacker.act(self.current_step, agent_action) 
+            # print("Attacker Action: {}, {}".format(attacker_action, agent_action))
+            self.attacker_agent_actions.append(agent_action)
+        else:
+            # attacker_state = self.attacker.get_state()
+            attacker_action = self.attacker.act(self.current_step) 
+            self.attacker_agent_actions.append(attacker_action)
+
+        beacon_state = torch.Tensor(self.beacon.get_state(attacker_action, self.current_step))
+
+        done = done or self.current_step >= self.max_steps
+
+        return (beacon_state, attacker_action, done)
+    
+    def update_step_classifier(self, beacon_action, attacker_action):
+        self.beacon.update(beacon_action=beacon_action, attacker_action=attacker_action)
+        self.attacker.update(beacon_action=beacon_action, attacker_action=attacker_action)
+        self.attacker_actions.append(attacker_action)
+        self.current_step += 1
+
+        if self.current_step % self.args.print_freq == 0:
+            print(f"--------------------------------Query: {self.current_step+1}---------------------------------")
+            print(f"Attacker Action: Position {attacker_action} ")
+            print(f"Beacon Action (Defender's output): {beacon_action} ")
+
+        _attacker_reward, attacker_done, _ = self.attacker.calc_reward(beacon_action, self.current_step)
+
+        return int(attacker_done)
+
+
+
     def step_classifier(self, defender, attacker_agent=None):
         """
         Returns:
@@ -279,10 +321,11 @@ class Env():
         # ----------------- Beacon Action (optional, for logging) -----------------
         beacon_state = torch.Tensor(self.beacon.get_state(attacker_action, self.current_step)).to(defender.device)
         # max_pvalue_change_threshold = 0.3
-        beacon_action = defender.process_query(beacon_state).cpu().detach().squeeze(0)
+        # beacon_action = defender.process_query(beacon_state).cpu().detach().squeeze(0)
+        beacon_action = defender.process_query(beacon_state)
 
-        # print(f"Attacker Action: Position {attacker_action} ")
-        # print(f"Beacon Action (Defender's output): {beacon_action} ")
+        print(f"Attacker Action: Position {attacker_action} ")
+        print(f"Beacon Action (Defender's output): {beacon_action} ")
 
         # ----------------- Update States -----------------
         self.beacon.update(beacon_action=beacon_action, attacker_action=attacker_action)
@@ -290,20 +333,23 @@ class Env():
         self.attacker_actions.append(attacker_action)
         self.current_step += 1
 
-        _reward, attacker_done, _ = self.attacker.calc_reward(beacon_action, self.current_step)
+        attacker_reward, attacker_done, _ = self.attacker.calc_reward(beacon_action, self.current_step)
+        beacon_reward, beacon_done, _ = self.beacon.calc_reward(beacon_action=beacon_action)
 
         # ----------------- Determine Label -----------------
         label = 1 - int(attacker_done)  # 1 if attacker identified victim, else 0
-        done = done or self.current_step >= self.max_steps
+        # done = done or self.current_step >= self.max_steps # used for training the defender
+        done = done or attacker_done
 
         # ----------------- Prepare Query Features -----------------
         # query_state = np.array(beacon_state, dtype=np.float32)
 
-        return beacon_state, label, done, {
-            "attacker_action": attacker_action,
-            "beacon_action": beacon_action,
-            "beacon_state": beacon_state
-        }
+        # return np.array(beacon_state), label, done, {
+        #     "attacker_action": attacker_action,
+        #     "beacon_action": beacon_action,
+        #     "beacon_state": beacon_state
+        # }, [beacon_reward, attacker_reward], [self.attacker._calc_pvalue(), beacon_action]
+        return [np.array(beacon_state), beacon_action, beacon_reward, done], [beacon_reward, attacker_reward], done, [self.attacker._calc_pvalue(), beacon_action]
 
     #################################################################################################
     #Populations

@@ -7,6 +7,7 @@ import random
 import torch
 
 from utils import *
+from classifier import IdentificationRNN, OnlineDefender
 
 
 def reproducibility(seed: int):
@@ -131,11 +132,12 @@ from env import Env
 args=args_create()
 
 
-def simulate(args, beacon_type, attacker_type, attacker_resume=None, beacon_resume=None, user_risk=0.2):
+def simulate(args, beacon_type, attacker_type, beacon_agent=args.beacon_agent, attacker_resume=None, beacon_resume=None, user_risk=0.2):
     args.beacon_type = beacon_type 
     args.attacker_type = attacker_type 
     args.user_risk = user_risk
-    # args.beacon_agent = beacon_agent 
+    # args.beacon_agent_type = beacon_agent 
+    args.beacon_agent = beacon_agent
     env = Env(args, maf_values, binary)
     ################ PPO hyperparameters ################
     K_epochs = 300         # update policy for K epochs
@@ -161,7 +163,7 @@ def simulate(args, beacon_type, attacker_type, attacker_resume=None, beacon_resu
         attacker_agent = PPO(attacker_state_dim, attacker_action_dim, lr_actor, lr_critic, gamma, K_epochs, eps_clip, False, None)
         attacker_agent.load(attacker_resume)
 
-    if beacon_type == "agent":
+    if beacon_type == "agent" and args.beacon_agent != "simple" :
         state_dim = 18
         action_dim = 1
         beacon_agent = TD3(state_dim, action_dim, max_action=1)
@@ -174,15 +176,60 @@ def simulate(args, beacon_type, attacker_type, attacker_resume=None, beacon_resu
         utilitiess = []
         utilitiess2 = []
 
-        for t in range(1, args.max_queries+1):
-            if attacker_type == "agent" and beacon_type == "agent":
-                beacon_state, rewards, done, pu  = env.step(attacker_agent=attacker_agent, beacon_agent=beacon_agent)
-            elif attacker_type == "agent":
-                beacon_state, rewards, done, pu  = env.step(attacker_agent=attacker_agent)
-            elif beacon_type == "agent":
-                beacon_state, rewards, done, pu  = env.step(beacon_agent=beacon_agent)
+        # for t in range(1, args.max_queries+1):
+        #     if attacker_type == "agent" and beacon_type == "agent":
+        #         if args.beacon_agent == "simple":
+        #             classifier = IdentificationRNN(
+        #                 query_dim=18,   # TODO: fix this
+        #                 hidden_dim=64
+        #             )
+        #             defender = OnlineDefender(classifier, 'cpu')
+        #             defender.load_model(beacon_resume)
+        #             beacon_state, rewards, done, pu  = env.step_classifier(defender, attacker_agent=attacker_agent)
+        #         else:  
+        #             beacon_state, rewards, done, pu  = env.step(attacker_agent=attacker_agent, beacon_agent=beacon_agent)
+        #     elif attacker_type == "agent":
+        #         beacon_state, rewards, done, pu  = env.step(attacker_agent=attacker_agent)
+        #     elif beacon_type == "agent":
+        #         if args.beacon_agent == "simple":
+        #             classifier = IdentificationRNN(
+        #                 query_dim=18,   # TODO: fix this
+        #                 hidden_dim=64
+        #             )
+        #             defender = OnlineDefender(classifier, 'cpu')
+        #             defender.load_model(beacon_resume)
+        #             beacon_state, rewards, done, pu  = env.step_classifier(defender)
+        #         else:   
+        #             beacon_state, rewards, done, pu  = env.step(beacon_agent=beacon_agent)
+        #     else:
+        #         beacon_state, rewards, done, pu  = env.step()
+        for t in range(1, args.max_queries + 1):
+            defender = None
+
+            # Setup defender only if beacon is a simple agent
+            if beacon_type == "agent" and args.beacon_agent == "simple":
+                classifier = IdentificationRNN(
+                    query_dim=18,   # TODO: fix this
+                    hidden_dim=64
+                )
+                defender = OnlineDefender(classifier, 'cpu')
+                defender.load_model(beacon_resume)
+
+            # Decide which step function to call
+            if defender is not None:
+                if attacker_type == "agent":
+                    beacon_state, rewards, done, pu = env.step_classifier(defender, attacker_agent=attacker_agent)
+                else:
+                    beacon_state, rewards, done, pu = env.step_classifier(defender)
             else:
-                beacon_state, rewards, done, pu  = env.step()
+                if attacker_type == "agent" and beacon_type == "agent":
+                    beacon_state, rewards, done, pu = env.step(attacker_agent=attacker_agent, beacon_agent=beacon_agent)
+                elif attacker_type == "agent":
+                    beacon_state, rewards, done, pu = env.step(attacker_agent=attacker_agent)
+                elif beacon_type == "agent":
+                    beacon_state, rewards, done, pu = env.step(beacon_agent=beacon_agent)
+                else:
+                    beacon_state, rewards, done, pu = env.step()
 
             # print(beacon_state[0])
 
@@ -597,7 +644,7 @@ evaluations = [
         "attacker_type": "regular",
         "beacon_resume": "./weights/SBD",
         "attacker_resume": None,
-        "query_binary_path": "./data/regular_queries_asthema.npy",
+        "query_binary_path": "data/regular_queries_adhd.npy",
         "user_risk": 1     
     },
     {
@@ -605,7 +652,7 @@ evaluations = [
         "attacker_type": "regular",
         "beacon_resume": "./weights/GBD",
         "attacker_resume": None,
-        "query_binary_path": "./data/regular_queries_asthema.npy",
+        "query_binary_path": "data/regular_queries_adhd.npy",
         "user_risk": 1
     },
     {
@@ -613,7 +660,7 @@ evaluations = [
         "attacker_type": "regular",
         "beacon_resume": None,
         "attacker_resume": None,
-        "query_binary_path": "./data/regular_queries_asthema.npy",
+        "query_binary_path": "data/regular_queries_adhd.npy",
         "user_risk": 1 
     },
     {
@@ -621,7 +668,7 @@ evaluations = [
         "attacker_type": "regular",
         "beacon_resume": None,
         "attacker_resume": None,
-        "query_binary_path": "./data/regular_queries_asthema.npy",
+        "query_binary_path": "data/regular_queries_adhd.npy",
         "user_risk": 1
     },
     {
@@ -629,7 +676,7 @@ evaluations = [
         "attacker_type": "regular",
         "beacon_resume": None,
         "attacker_resume": None,
-        "query_binary_path": "./data/regular_queries_asthema.npy",
+        "query_binary_path": "data/regular_queries_adhd.npy",
         "user_risk": 1
     },
     {
@@ -637,7 +684,7 @@ evaluations = [
         "attacker_type": "regular",
         "beacon_resume": None,
         "attacker_resume": None,
-        "query_binary_path": "./data/regular_queries_asthema.npy",
+        "query_binary_path": "data/regular_queries_adhd.npy",
         "user_risk": 1
     },
     {
@@ -645,7 +692,7 @@ evaluations = [
         "attacker_type": "regular",
         "beacon_resume": None,
         "attacker_resume": None,
-        "query_binary_path": "./data/regular_queries_asthema.npy",
+        "query_binary_path": "data/regular_queries_adhd.npy",
         "user_risk": 1
         
     },
@@ -654,7 +701,7 @@ evaluations = [
         "attacker_type": "regular",
         "beacon_resume": None,
         "attacker_resume": None,
-        "query_binary_path": "./data/regular_queries_asthema.npy",
+        "query_binary_path": "data/regular_queries_adhd.npy",
         "user_risk": 1
         
     },
@@ -663,7 +710,7 @@ evaluations = [
         "attacker_type": "regular",
         "beacon_resume": None,
         "attacker_resume": None,
-        "query_binary_path": "./data/regular_queries_asthema.npy",
+        "query_binary_path": "data/regular_queries_adhd.npy",
         "user_risk": 1
     },
     {
@@ -671,10 +718,55 @@ evaluations = [
         "attacker_type": "regular",
         "beacon_resume": None,
         "attacker_resume": None,
-        "query_binary_path": "./data/regular_queries_asthema.npy",
+        "query_binary_path": "data/regular_queries_adhd.npy",
+        "user_risk": 1
+    },
+    {
+        "beacon_type": "agent",
+        "beacon_agent": "simple",
+        "attacker_type": "regular",
+        "beacon_resume": "./results/train/run64/weights/Classifier_0.pth",
+        "attacker_resume": None,
+        "query_binary_path": "data/regular_queries_adhd.npy",
         "user_risk": 1
     },
 ]
+
+# evaluations = [
+#     {
+#         "beacon_type": "agent",
+#         "beacon_agent": "simple",
+#         "attacker_type": "optimal",
+#         "beacon_resume": "./results/train/run64/weights/Classifier_0.pth",
+#         "attacker_resume": None,
+#         "user_risk": 1
+#     },
+#     {
+#         "beacon_type": "agent",
+#         "beacon_agent": "simple",
+#         "attacker_type": "agent",
+#         "beacon_resume": "./results/train/run64/weights/Classifier_0.pth",
+#         "attacker_resume": "./weights/SBA.pth",
+#         "user_risk": 1
+#     },
+#     {
+#         "beacon_type": "agent",
+#         "beacon_agent": "simple",
+#         "attacker_type": "agent",
+#         "beacon_resume": "./results/train/run64/weights/Classifier_0.pth",
+#         "attacker_resume": "./weights/GBA.pth",
+#         "user_risk": 1
+#     },
+#     {
+#         "beacon_type": "agent",
+#         "beacon_agent": "simple",
+#         "attacker_type": "regular",
+#         "beacon_resume": "./results/train/run64/weights/Classifier_0.pth",
+#         "attacker_resume": None,
+#         "query_binary_path": "data/regular_queries_adhd.npy",
+#         "user_risk": 1
+#     },
+# ]
 
 beacon_rewards=[]
 attacker_rewards=[]
@@ -685,7 +777,8 @@ utilities2=[]
 for eval in evaluations:
     print(eval)
     args.query_binary_path = eval['query_binary_path'] if 'query_binary_path' in eval else None
-    res = simulate(args, beacon_type=eval["beacon_type"], attacker_type=eval["attacker_type"], beacon_resume=eval['beacon_resume'], attacker_resume=eval["attacker_resume"], user_risk=eval["user_risk"])
+    beacon_agent = eval['beacon_agent'] if 'beacon_agent' in eval else args.beacon_agent
+    res = simulate(args, beacon_agent=beacon_agent, beacon_type=eval["beacon_type"], attacker_type=eval["attacker_type"], beacon_resume=eval['beacon_resume'], attacker_resume=eval["attacker_resume"], user_risk=eval["user_risk"])
     beacon_rewards.append(res[0])
     attacker_rewards.append(res[1])
     privacies.append(res[2])
@@ -702,5 +795,5 @@ data_dict = {
 }
 
 # Save the dictionary to a pickle file
-with open('./results/binary/regular-asthema.pkl', 'wb') as f:
+with open('./results/binary/regular-adhd.pkl', 'wb') as f:
     pickle.dump(data_dict, f)

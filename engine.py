@@ -113,11 +113,12 @@ def train_classifier_beacon(args, env, defender, lr):
     optimizer = optim.Adam(classifier_model.parameters(), lr=lr)
     criterion = nn.BCELoss()
 
-    for attacker in attackers:
-        args.attacker_type = attacker
 
-        i_episode = 1
-        while i_episode <= args.episodes:
+    i_episode = 1
+    while i_episode <= args.episodes:
+        for attacker in attackers:
+            args.attacker_type = attacker
+            
             classifier_model.train()
             print("attacker type set to: ", attacker)
             env.reset(args)
@@ -127,41 +128,49 @@ def train_classifier_beacon(args, env, defender, lr):
 
             # hidden state for RNN
             hidden = None
+            losses = []
 
+            optimizer.zero_grad()
             for t in range(1, args.max_queries+1):
                 (beacon_state, attacker_action, done)  = env.step_classifier_new()
                 # env.step_classifier() should return: (query_vector, honesty_label, done, info)
-                print(beacon_state)
+                # print(beacon_state)
 
                 beacon_state = beacon_state.unsqueeze(0).unsqueeze(0).to(args.device)
-                print(f"Beacon state shape: {beacon_state.shape}, Attacker action: {attacker_action}")
+                # print(f"Beacon state shape: {beacon_state.shape}, Attacker action: {attacker_action}")
                 # query = beacon_state.beacon_state(0).unsqueeze(0).to(args.device)  # shape [1,1,query_dim]
 
-                optimizer.zero_grad()
                 prob, hidden = classifier_model(beacon_state, hidden)  # prob in [0,1]
-                hidden = hidden.detach()  # detach hidden state to prevent backprop through entire history
+                # hidden = hidden.detach()  # detach hidden state to prevent backprop through entire history
 
                 # print(f"prob: {prob}")
                 # print(f"label: {label}")
                 label = env.update_step_classifier(prob.detach().item(), attacker_action)
-                label = torch.FloatTensor([label]).to(args.device)
+                label = torch.FloatTensor([1 - label]).to(args.device)
                 
-                loss = criterion(prob, label)
+                loss = criterion(prob, label) 
 
-                loss.backward()
-                optimizer.step()
+                if label.detach().item() == 0:
+                    loss *= 10
+
+                losses.append(loss)
 
                 ep_loss += loss.item()
                 pred = (prob.detach() > 0.5).float()
                 correct += (pred == label).sum().item()
                 total += 1
 
-                if done:
+                if label.detach().item() == 0:
                     break
+
+            # Combine all losses for this episode
+            total_loss = torch.stack(losses).mean()
+            total_loss.backward()
+            optimizer.step()
 
             # log results
             acc = correct / total if total > 0 else 0
-            print(f"Episode {i_episode} \t Loss: {ep_loss:.4f} \t Accuracy: {acc:.4f}")
+            print(f"Episode {i_episode} \t Loss: {total_loss:.4f} \t Accuracy: {acc:.4f}")
 
             # save model checkpoint every few episodes
             # TODO: fix this

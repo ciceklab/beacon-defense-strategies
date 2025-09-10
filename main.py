@@ -41,14 +41,14 @@ def args_create():
 
     # Environment Setup
     parser.add_argument('--data', default="/mnt/kerem/CEU", type=str, help='Dataset Path')
-    parser.add_argument('--episodes', default=20000, type=int, metavar='N', help='Number of episodes for training agent.')
+    parser.add_argument('--episodes', default=400, type=int, metavar='N', help='Number of episodes for training agent.')
     parser.add_argument('--seed', default=3, type=int, help='Seed for reproducibility')
     parser.add_argument('--a_control_size', default=50, type=int, help='Attack Control group size')
     parser.add_argument('--b_control_size', default=50, type=int, help='Beacon Control group size')
     parser.add_argument('--gene_size', default=100000, type=int, help='States gene size')
     parser.add_argument('--beacon_size', default=40, type=int, help='Beacon population size')
     parser.add_argument('--victim_prob', default=1, type=float, help='Victim inside beacon or not!')
-    parser.add_argument('--max_queries', default=10000, type=int, help='Maximum queries per episode')
+    parser.add_argument('--max_queries', default=300, type=int, help='Maximum queries per episode')
     parser.add_argument('--evaluate', default=False, type=bool, help='Evaluation or Not')
     parser.add_argument('--binary', default=False, type=bool, help='Binary queries')
     parser.add_argument('--user_risk', default=0.2, type=float, help='Risk Level for End User')
@@ -56,10 +56,10 @@ def args_create():
     # Training Setup
     parser.add_argument('--train', default="attacker", choices=["attacker", "beacon", "both"], type=str, help='Train side!')
     
-    parser.add_argument('--attacker_type', default="agent", choices=["random", "optimal", "agent"], type=str, help='Type of the attacker')
-    parser.add_argument('--beacon_type', default="truth", choices=["random", "agent", "truth", "beacon_strategy"], type=str, help='Type of the beacon')
+    parser.add_argument('--attacker_type', default="random", choices=["random", "optimal", "agent"], type=str, help='Type of the attacker')
+    parser.add_argument('--beacon_type', default="agent", choices=["random", "agent", "truth", "beacon_strategy"], type=str, help='Type of the beacon')
 
-    parser.add_argument('--beacon_agent', default="td", choices=["td", "ppo", "simple"], type=str, help='Type of the beacon')
+    parser.add_argument('--beacon_agent', default="simple", choices=["td", "ppo", "simple"], type=str, help='Type of the beacon')
 
     parser.add_argument('--pop_reset_freq', default=100000000, type=int, help='Reset Population Frequency (Epochs)')
     parser.add_argument('--update_freq', default=10, type=int, help='Train Agent model frequency')
@@ -71,7 +71,7 @@ def args_create():
     parser.add_argument('--resume-attacker', default=None, type=str, metavar='PATH', help='path to latest checkpoint (default: none)')
     # parser.add_argument('--resume-beacon', default="/data6/sobhan/Beacons/results/train/run99/weights/25000", type=str, metavar='PATH', help='path to latest checkpoint (default: none)')
 
-    parser.add_argument('--resume-beacon', default='/data6/sobhan/Beacons/results/train/run77/weights', type=str, metavar='PATH', help='path to latest checkpoint (default: none)')
+    # parser.add_argument('--resume-beacon', default='/data6/sobhan/Beacons/results/train/run77/weights', type=str, metavar='PATH', help='path to latest checkpoint (default: none)')
 
 
     parser.add_argument('--results-dir', default='./results/train', type=str, metavar='PATH', help='path to cache (default: none)')

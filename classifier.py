@@ -20,7 +20,7 @@ class OnlineDefender:
         new_query: tensor of shape (input_dim,)
         Returns: decision (1 = honest, 0 = lie)
         """
-
+        self.eval_mode()
         # self.classifier.eval()
         # print(f"New query: {new_query}\n Shape: {new_query.shape}")
         new_query = new_query.unsqueeze(0).unsqueeze(0)
@@ -44,7 +44,8 @@ class OnlineDefender:
         # print(f"Prob before: {prob_before}\n after: {prob_after}\n history: {self.history}")
 
         # TODO: this may need to be changed
-        return (prob_after - prob_before)
+        # return (prob_after - prob_before)
+        return prob_after.item()
 
         # decision rule
         # if (prob_after - prob_before) > self.threshold:
@@ -58,8 +59,12 @@ class OnlineDefender:
     def train_mode(self):
         self.classifier.train()
 
+    def load_model(self, path):
+        self.classifier.load_state_dict(torch.load(path, map_location=self.device))
+        self.classifier.to(self.device)
+
 class IdentificationRNN(nn.Module):
-    def __init__(self, query_dim, hidden_dim=64, num_layers=1):
+    def __init__(self, query_dim, hidden_dim=64, num_layers=3):
         super(IdentificationRNN, self).__init__()
         self.hidden_dim = hidden_dim
         self.num_layers = num_layers
