@@ -8,12 +8,12 @@ channel_priority: strict
 dependencies:
   - python=3.10
   - pip
-  - numpy
+  - pytorch=2.1
+  - pytorch-cuda=11.8
+  - numpy<2
   - pandas
   - scipy
   - tqdm
-  - pytorch=2.1
-  - pytorch-cuda=11.8
   - torchmetrics
   - datasets
   - regex
