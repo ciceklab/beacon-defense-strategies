@@ -95,7 +95,7 @@ import os
 import joblib
 
 # Cache file path
-cache_path = "../binary_cache.joblib"
+cache_path = "./binary_cache.joblib"
 
 # Check if the cached file exists
 if os.path.exists(cache_path):
@@ -498,7 +498,7 @@ def simulate(args, beacon_type, attacker_type, beacon_agent=args.beacon_agent, a
 #     {
 #         "beacon_type": "agent",
 #         "attacker_type": "regular",
-#         "beacon_resume": "./weights/SBD",
+#         "beacon_resume": "./weights/TBD",
 #         "attacker_resume": None,
 #         "query_binary_path": "./data/regular_queries.npy",
 #         "user_risk": 1     
@@ -575,7 +575,7 @@ def simulate(args, beacon_type, attacker_type, beacon_agent=args.beacon_agent, a
 #     {
 #         "beacon_type": "agent",
 #         "attacker_type": "regular",
-#         "beacon_resume": "./weights/SBD",
+#         "beacon_resume": "./weights/TBD",
 #         "attacker_resume": None,
 #         "query_binary_path": "data/regular_queries_adhd.npy",
 #         "user_risk": 1     
@@ -650,7 +650,7 @@ def simulate(args, beacon_type, attacker_type, beacon_agent=args.beacon_agent, a
 #         "beacon_type": "agent",
 #         "beacon_agent": "simple",
 #         "attacker_type": "regular",
-#         "beacon_resume": "./results/train/run64/weights/Classifier_0.pth",
+#         "beacon_resume": "./weights/Classifier.pth",
 #         "attacker_resume": None,
 #         "query_binary_path": "data/regular_queries_adhd.npy",
 #         "user_risk": 1
@@ -662,7 +662,7 @@ evaluations = [
         "beacon_type": "agent",
         "beacon_agent": "simple",
         "attacker_type": "optimal",
-        "beacon_resume": "./results/train/run64/weights/Classifier_0.pth",
+        "beacon_resume": "./weights/Classifier.pth",
         "attacker_resume": None,
         "user_risk": 1
     },
@@ -670,7 +670,7 @@ evaluations = [
         "beacon_type": "agent",
         "beacon_agent": "simple",
         "attacker_type": "agent",
-        "beacon_resume": "./results/train/run64/weights/Classifier_0.pth",
+        "beacon_resume": "./weights/Classifier.pth",
         "attacker_resume": "./weights/SBA.pth",
         "user_risk": 1
     },
@@ -678,7 +678,7 @@ evaluations = [
         "beacon_type": "agent",
         "beacon_agent": "simple",
         "attacker_type": "agent",
-        "beacon_resume": "./results/train/run64/weights/Classifier_0.pth",
+        "beacon_resume": "./weights/Classifier.pth",
         "attacker_resume": "./weights/GBA.pth",
         "user_risk": 1
     },
@@ -686,7 +686,7 @@ evaluations = [
         "beacon_type": "agent",
         "beacon_agent": "simple",
         "attacker_type": "regular",
-        "beacon_resume": "./results/train/run64/weights/Classifier_0.pth",
+        "beacon_resume": "./weights/Classifier.pth",
         "attacker_resume": None,
         "query_binary_path": "data/regular_queries_adhd.npy",
         "user_risk": 1
