@@ -46,6 +46,7 @@ conda activate beacon
 The data used in this experiment is hosted on GitHub LFS. To load these files, you need to have **Git** and **Git LFS** installed. Then run the following command:
 
 ```shell
+git lfs install
 git lfs fetch --all
 git lfs pull
 git lfs checkout
