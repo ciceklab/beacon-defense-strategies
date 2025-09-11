@@ -565,7 +565,7 @@ def line_and_bar_plot(line_data, bar_data, labels, title, ylabel_line, ylabel_ba
     classes, stages = line_data.shape
     
     x_positions = np.arange(stages)
-    bar_width = 0.12  # Adjusted Bar width for better clarity
+    bar_width = 0.010  # Adjusted Bar width for better clarity
     
     # Plotting the line data
     for class_idx in range(classes):
@@ -700,13 +700,13 @@ def line_and_bar_plot2(line_data, bar_data, labels, title, ylabel_line, ylabel_b
     plt.tight_layout()
     plt.show()
     
-def line_and_bar_plot3(line_data, bar_data, labels, ylabel_line, ylabel_bar):
+def line_and_bar_plot3(line_data, bar_data, labels, ylabel_line, ylabel_bar, jitter_strength=0.005):
     # line_data and bar_data should have shapes (4, 7, 11), so we iterate over the first dimension
     num_groups, classes, stages = line_data.shape
     
     fig, axs = plt.subplots(2, 2, constrained_layout=True)  # Create a 2x2 grid for the panels
 #     fig, axs = plt.subplots(2, 2)  # Create a 2x2 grid for the panels
-#   color_palette = ["#2E2E2E", "#E74C3C", "#3498DB", "#1ABC9C", "#E67E22", "#F1C40F", "#65879F", "#8B8C89", "#425062", "#8F5C5C", "#CFACAC"]
+    color_palette = ["#2E2E2E", "#E74C3C", "#3498DB", "#1ABC9C", "#E67E22", "#F1C40F", "#65879F", "#8B8C89", "#CC79A7", "#CFACAC", "#8F5C5C"]
 #     color_palette = [
 #         "#377EB8",  # deep blue
 #         "#E69F00",  # burnt orange
@@ -720,25 +720,34 @@ def line_and_bar_plot3(line_data, bar_data, labels, ylabel_line, ylabel_bar):
 #         "#E41A1C",  # strong red
 #         "#4DAF4A"   # green
 #     ]
-    color_palette = [
-        "#0072B2",  # Blue
-        "#E69F00",  # Orange
-        "#009E73",  # Bluish Green
-        "#CC79A7",  # Reddish Purple
-        "#F0E442",  # Yellow (use with caution on very light backgrounds)
-        "#56B4E9",  # Sky Blue
-        "#D55E00",  # Vermillion
-        "#999999",  # Gray
-        "#000000",   # Black (for strong contrast, if needed for an important category)
-        "red"   # Teal/Cyan
-    ]
+    # color_palette = [
+    #     "#E69F00",  # Orange
+    #     "#0000FF",  # Blue
+    #     "#009E73",  # Bluish Green
+    #     "#FF69B4",  # Reddish Purple
+    #     "#F0E442",  # Yellow (use with caution on very light backgrounds)
+    #     "#56B4E9",  # Sky Blue
+    #     "red",   # Teal/Cyan
+    #     "#999999",  # Gray
+    #     "#000000",   # Black (for strong contrast, if needed for an important category)
+    #     "#720e9e",  # Vermillion
+    # ]
     print(f"Number of available colors: {len(color_palette)}")
     x_ticks = ['1', '100', '200', '300', '400', '500', '600', '700', '800', '900', '1000']
     x_positions = np.arange(stages)
-    bar_width = 0.12  # Adjusted Bar width for better clarity
+    bar_width = 0.1  # Adjusted Bar width for better clarity
 
 
-    labels_for_plots = ['A', 'B', 'C', 'D']  # To mark each plot
+    labels_for_plots = [
+        r'$\mathbf{A.}$ Against Optimal Attacker',
+        # 'A. Defense methods against Optimal Attacker', 
+        r'$\mathbf{B.}$ Against TBA',
+        r'$\mathbf{C.}$ Against GBA',
+        r'$\mathbf{D.}$ Against Regular User',
+        # 'B. Defense methods against TBA',
+        # 'C. Defense methods against GBA',
+        # 'D. Defense methods against Regular User'
+    ]  # To mark each plot
 
     # Iterate over the first dimension (groups) and plot each group in a separate panel
     for group_idx in range(num_groups):
@@ -748,13 +757,13 @@ def line_and_bar_plot3(line_data, bar_data, labels, ylabel_line, ylabel_bar):
         ax.set_yticks([])  # Removes the x-ticks
         ax.set_yticklabels([])  # Removes the x-tick labels
 
-        ax.text(0, 1.1, labels_for_plots[group_idx], transform=ax.transAxes, 
-                fontsize=25, fontweight='bold', va='top', ha='right')
+        ax.text(-0.05, 1.1, labels_for_plots[group_idx], transform=ax.transAxes, 
+                fontsize=25, va='top', ha='left')
 
         if group_idx != num_groups - 1: 
             # Create two subplots (ax1 for line plot, ax2 for bar plot) in the current panel
             ax1 = ax.inset_axes([0, 0.28, 1, 0.7])  # Upper inset for the line plot
-            ax2 = ax.inset_axes([0, 0, 1, 0.25])  # Lower inset for the bar plot
+            ax2 = ax.inset_axes([0, 0, 1, 0.2])  # Lower inset for the bar plot
             ax1.set_xticks([])  # Removes the x-ticks
             ax1.set_xticklabels([])  # Removes the x-tick labels
             ax1.spines['bottom'].set_visible(False)
@@ -774,11 +783,17 @@ def line_and_bar_plot3(line_data, bar_data, labels, ylabel_line, ylabel_bar):
 
         # Plotting the line data on the upper axis (ax1)
         for class_idx in range(classes):
-            class_data = line_data[group_idx, class_idx, :]  # shape (stages,)
-            edge_color = 'black'
-            line_color = color_palette[class_idx]
+            class_data = line_data[group_idx, classes - class_idx - 1, :]  # shape (stages,)
+            if jitter_strength > 0:
+                jitter = np.random.uniform(-jitter_strength, jitter_strength, size=stages)
+                class_data = np.clip(class_data + jitter, 0, 1.1)
+            else:
+                class_data = class_data
 
-            ax1.plot(x_positions, class_data, marker='.', color=line_color, markeredgewidth=2, markeredgecolor=edge_color, linewidth=5, alpha=0.8)
+            edge_color = 'black'
+            line_color = color_palette[classes - class_idx - 1]
+
+            ax1.plot(x_positions, class_data, marker='.', color=line_color, markeredgewidth=2, markeredgecolor=edge_color, linewidth=3, alpha=0.8)
 
         ax1.set_ylabel(ylabel_line, fontsize=20)
         ax1.set_ylim(0, None)

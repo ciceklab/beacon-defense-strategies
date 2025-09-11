@@ -1,3 +1,21 @@
+# Copyright (C) 2025 CICEKLAB
+#
+# This file is part of the code accompanying the paper "A Reinforcement 
+# Learning-based Approach for Dynamic Privacy Protection in Genomic Data Sharing Beacons".
+#
+# beacon-defense-strategies is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# beacon-defense-strategies is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with beacon-defense-strategies code. If not, see <https://www.gnu.org/licenses/>.
+
 import pandas as pd
 import numpy as np
 import pickle
@@ -5,6 +23,7 @@ import argparse
 import os
 import random
 import torch
+from classifier import IdentificationRNN, OnlineDefender
 
 
 def reproducibility(seed: int):
@@ -39,15 +58,15 @@ def args_create():
 
 
     # Environment Setup
-    parser.add_argument('--data', default="/mnt/kerem/CEU", type=str, help='Dataset Path')
-    parser.add_argument('--episodes', default=20000, type=int, metavar='N', help='Number of episodes for training agent.')
+    parser.add_argument('--data', default="./data/CEU", type=str, help='Dataset Path')
+    parser.add_argument('--episodes', default=400, type=int, metavar='N', help='Number of episodes for training agent.')
     parser.add_argument('--seed', default=3, type=int, help='Seed for reproducibility')
     parser.add_argument('--a_control_size', default=50, type=int, help='Attack Control group size')
     parser.add_argument('--b_control_size', default=50, type=int, help='Beacon Control group size')
     parser.add_argument('--gene_size', default=100000, type=int, help='States gene size')
-    parser.add_argument('--beacon_size', default=10, type=int, help='Beacon population size')
+    parser.add_argument('--beacon_size', default=40, type=int, help='Beacon population size')
     parser.add_argument('--victim_prob', default=1, type=float, help='Victim inside beacon or not!')
-    parser.add_argument('--max_queries', default=50, type=int, help='Maximum queries per episode')
+    parser.add_argument('--max_queries', default=300, type=int, help='Maximum queries per episode')
     parser.add_argument('--evaluate', default=False, type=bool, help='Evaluation or Not')
     parser.add_argument('--binary', default=False, type=bool, help='Binary queries')
     parser.add_argument('--user_risk', default=0.2, type=float, help='Risk Level for End User')
@@ -55,10 +74,10 @@ def args_create():
     # Training Setup
     parser.add_argument('--train', default="attacker", choices=["attacker", "beacon", "both"], type=str, help='Train side!')
     
-    parser.add_argument('--attacker_type', default="agent", choices=["random", "optimal", "agent"], type=str, help='Type of the attacker')
-    parser.add_argument('--beacon_type', default="truth", choices=["random", "agent", "truth", "beacon_strategy"], type=str, help='Type of the beacon')
+    parser.add_argument('--attacker_type', default="random", choices=["random", "optimal", "agent"], type=str, help='Type of the attacker')
+    parser.add_argument('--beacon_type', default="agent", choices=["random", "agent", "truth", "beacon_strategy"], type=str, help='Type of the beacon')
 
-    parser.add_argument('--beacon_agent', default="td", choices=["td", "ppo"], type=str, help='Type of the beacon')
+    parser.add_argument('--beacon_agent', default="simple", choices=["td", "ppo", "simple"], type=str, help='Type of the beacon')
 
     parser.add_argument('--pop_reset_freq', default=100000000, type=int, help='Reset Population Frequency (Epochs)')
     parser.add_argument('--update_freq', default=10, type=int, help='Train Agent model frequency')
@@ -70,7 +89,7 @@ def args_create():
     parser.add_argument('--resume-attacker', default=None, type=str, metavar='PATH', help='path to latest checkpoint (default: none)')
     # parser.add_argument('--resume-beacon', default="/data6/sobhan/Beacons/results/train/run99/weights/25000", type=str, metavar='PATH', help='path to latest checkpoint (default: none)')
 
-    parser.add_argument('--resume-beacon', default='/data6/sobhan/Beacons/results/train/run77/weights', type=str, metavar='PATH', help='path to latest checkpoint (default: none)')
+    # parser.add_argument('--resume-beacon', default='/data6/sobhan/Beacons/results/train/run77/weights', type=str, metavar='PATH', help='path to latest checkpoint (default: none)')
 
 
     parser.add_argument('--results-dir', default='./results/train', type=str, metavar='PATH', help='path to cache (default: none)')
@@ -97,7 +116,7 @@ import os
 import joblib
 
 # Cache file path
-cache_path = "/data1/masoud/binary_cache.joblib"
+cache_path = "../binary_cache.joblib"
 
 # Check if the cached file exists
 if os.path.exists(cache_path):
@@ -106,8 +125,8 @@ if os.path.exists(cache_path):
     binary = joblib.load(cache_path)
 else:
     # If cache doesn't exist, process and save to cache
-    beacon = pd.read_csv(os.path.join("/mnt/kerem/CEU", "Beacon_164.txt"), index_col=0, delim_whitespace=True)
-    reference = pickle.load(open(os.path.join("/mnt/kerem/CEU", "reference.pickle"), "rb"))
+    beacon = pd.read_csv(os.path.join("./data/CEU", "Beacon_164.txt"), index_col=0, delim_whitespace=True)
+    reference = pickle.load(open(os.path.join("./data/CEU", "reference.pickle"), "rb"))
     binary = np.logical_and(beacon.values != reference, beacon.values != "NN").astype(int)
     
     # Save the processed binary data to cache for future use
@@ -115,7 +134,7 @@ else:
 
 
 # Table that contains MAF (minor allele frequency) values for each position. 
-maf = pd.read_csv(os.path.join("/mnt/kerem/CEU", "MAF.txt"), index_col=0, delim_whitespace=True)
+maf = pd.read_csv(os.path.join("./data/CEU", "MAF.txt"), index_col=0, delim_whitespace=True)
 maf.rename(columns = {'referenceAllele':'major', 'referenceAlleleFrequency':'major_freq', 
                       'otherAllele':'minor', 'otherAlleleFrequency':'minor_freq'}, inplace = True)
 maf["maf"] = np.round(maf["maf"].values, 3)
@@ -132,7 +151,7 @@ from env import Env
 from ppo import PPO
 from ddpg import DDPG
 from td import TD3
-from engine import train_beacon, train_attacker, train_both, train_TD_beacon
+from engine import train_beacon, train_attacker, train_both, train_TD_beacon, train_classifier_beacon
 
 args = args_create()
 def main():
@@ -161,6 +180,18 @@ def main():
 
             beacon_agent = PPO(state_dim, action_dim, lr_actor, lr_critic, gamma, K_epochs, eps_clip, False, None)
             train_beacon(args, env, beacon_agent)
+
+        elif args.beacon_agent == "simple":
+            beacon_classifier = IdentificationRNN(
+                query_dim=18,   # TODO: fix this
+                hidden_dim=64
+            )
+            defender = OnlineDefender(beacon_classifier, device)
+
+            learning_rate = 0.001
+
+            train_classifier_beacon(args, env, defender, learning_rate)
+                
 
         else:
             raise NotImplemented

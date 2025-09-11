@@ -6,6 +6,8 @@ import matplotlib.pyplot as plt
 from ppo import PPO
 
 import torch
+import torch.nn as nn
+import torch.optim as optim
 
 def train_beacon(args:object, env:object, ppo_agent:object, attacker_agent=None):
     print("============================================================================================")
@@ -87,7 +89,106 @@ def train_beacon(args:object, env:object, ppo_agent:object, attacker_agent=None)
     print("Total training time  : ", end_time - start_time)
     print("============================================================================================")
 
+def train_classifier_beacon(args, env, defender, lr):
+    print("============================================================================================")
+    start_time = datetime.now().replace(microsecond=0)
+    print("Started training at (GMT) : ", start_time)
+    print("============================================================================================")
 
+    attackers = ["random", "optimal"]
+
+    ################### Logging ###################
+    run_num = len(next(os.walk(args.results_dir))[2]) if os.path.exists(args.results_dir) else 0
+    print("current logging run number: ", run_num)
+
+    ################### checkpointing ###################
+    directory = os.path.join(args.results_dir, "weights")
+    os.makedirs(directory, exist_ok=True)
+    checkpoint_path = os.path.join(directory, f"Classifier_{run_num}.pth")
+    print("save checkpoint path : " + checkpoint_path)
+
+    classifier_model = defender.classifier
+
+    # optimizer & loss
+    optimizer = optim.Adam(classifier_model.parameters(), lr=lr)
+    criterion = nn.BCELoss()
+
+
+    i_episode = 1
+    while i_episode <= args.episodes:
+        for attacker in attackers:
+            args.attacker_type = attacker
+            
+            classifier_model.train()
+            print("attacker type set to: ", attacker)
+            env.reset(args)
+
+            ep_loss = 0
+            correct, total = 0, 0
+
+            # hidden state for RNN
+            hidden = None
+            losses = []
+
+            optimizer.zero_grad()
+            for t in range(1, args.max_queries+1):
+                (beacon_state, attacker_action, done)  = env.step_classifier_new()
+                # env.step_classifier() should return: (query_vector, honesty_label, done, info)
+                # print(beacon_state)
+
+                beacon_state = beacon_state.unsqueeze(0).unsqueeze(0).to(args.device)
+                # print(f"Beacon state shape: {beacon_state.shape}, Attacker action: {attacker_action}")
+                # query = beacon_state.beacon_state(0).unsqueeze(0).to(args.device)  # shape [1,1,query_dim]
+
+                prob, hidden = classifier_model(beacon_state, hidden)  # prob in [0,1]
+                # hidden = hidden.detach()  # detach hidden state to prevent backprop through entire history
+
+                # print(f"prob: {prob}")
+                # print(f"label: {label}")
+                label = env.update_step_classifier(prob.detach().item(), attacker_action)
+                label = torch.FloatTensor([1 - label]).to(args.device)
+                
+                loss = criterion(prob, label) 
+
+                if label.detach().item() == 0:
+                    loss *= 10
+
+                losses.append(loss)
+
+                ep_loss += loss.item()
+                pred = (prob.detach() > 0.5).float()
+                correct += (pred == label).sum().item()
+                total += 1
+
+                if label.detach().item() == 0:
+                    break
+
+            # Combine all losses for this episode
+            total_loss = torch.stack(losses).mean()
+            total_loss.backward()
+            optimizer.step()
+
+            # log results
+            acc = correct / total if total > 0 else 0
+            print(f"Episode {i_episode} \t Loss: {total_loss:.4f} \t Accuracy: {acc:.4f}")
+
+            # save model checkpoint every few episodes
+            # TODO: fix this
+            if i_episode % 2 == 0:
+                print("--------------------------------------------------------------------------------------------")
+                print("saving model at : " + checkpoint_path)
+                torch.save(classifier_model.state_dict(), checkpoint_path)
+                print("model saved")
+                print("Elapsed Time  : ", datetime.now().replace(microsecond=0) - start_time)
+                print("--------------------------------------------------------------------------------------------")
+
+            i_episode += 1
+
+    print("============================================================================================")
+    end_time = datetime.now().replace(microsecond=0)
+    print("Finished training at (GMT) : ", end_time)
+    print("Total training time  : ", end_time - start_time)
+    print("============================================================================================")
 
 
 def train_attacker(args:object, env:object, ppo_agent:object):

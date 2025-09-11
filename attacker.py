@@ -42,6 +42,9 @@ class Attacker():
         if self.args.attacker_type == "random":
             self.random_queries = self._init_random(self.args.user_risk)
 
+        if self.args.attacker_type == "regular":
+            self.regular_queries = self._init_regular(self.args.query_binary_path)
+
         # Initializing the control LRTS
         self.control_lrts = torch.zeros(size=(self.args.a_control_size,))
         self.victim_lrt = torch.as_tensor(0)
@@ -115,6 +118,46 @@ class Attacker():
     #################################################################################################
     # Attacker Action
 
+    # def act(self, current_step, agent_action=None):
+    #     if self.args.attacker_type == "optimal":
+    #         return self.optimal_queries[current_step]
+
+    #     if self.args.attacker_type == "agent":
+    #         presence = agent_action // 6
+    #         category = agent_action % 6
+
+    #         if category < 0 or category >= len(self.maf_categories):
+    #             raise ValueError(f"Invalid group number: {category}. Must be between 0 and {len(self.maf_categories) - 1}.")
+
+    #         # this logic is a bit buggy, but we will not face the bug
+    #         while self.maf_categories[category] == 0:
+    #             print(f"No indices left in group {category} to sample.")
+    #             category = (category + 1) % 6
+
+    #         # start = time.time()
+    #         time_current = time.time()
+
+    #         start_ind = self.maf_helper.cat_start_ind[category]
+    #         indices, = torch.nonzero(
+    #             (1 - presence - self.victim[start_ind:]) * self.mafs[start_ind:], as_tuple=True)
+            
+    #         print(f"Indices prep took {time.time() - time_current:.4f} seconds")
+    #         time_current = time.time()
+
+    #         # for i in range(start_ind, len(self.mafs)):
+    #         for i in indices:
+    #             ind = i + start_ind
+
+    #             ith_snp_group = self.categorized_maf[ind]
+
+    #             # This function should and will terminate here.
+    #             if ith_snp_group == category:
+    #                 print(f"Finding index took {time.time() - time_current:.4f} seconds")
+    #                 # end = time.time()
+    #                 # print(f"elpased time: {end - start}")
+    #                 return ind
+
+    #         raise RuntimeError("Something went wrong!")
     def act(self, current_step, agent_action=None):
         if self.args.attacker_type == "optimal":
             return self.optimal_queries[current_step]
@@ -131,26 +174,24 @@ class Attacker():
                 print(f"No indices left in group {category} to sample.")
                 category = (category + 1) % 6
 
-            # start = time.time()
             start_ind = self.maf_helper.cat_start_ind[category]
-            indices, = torch.nonzero(
-                (1 - presence - self.victim[start_ind:]) * self.mafs[start_ind:], as_tuple=True)
-            # for i in range(start_ind, len(self.mafs)):
-            for i in indices:
-                ind = i + start_ind
+            # candidate indices where victim==0 and presence==0
+            mask = (1 - presence - self.victim[start_ind:]) * self.mafs[start_ind:]
+            indices = torch.nonzero(mask, as_tuple=True)[0] + start_ind
 
-                ith_snp_group = self.categorized_maf[ind]
+            valid_indices = indices[self.categorized_maf[indices] == category]
 
-                # This function should and will terminate here.
-                if ith_snp_group == category:
-                    # end = time.time()
-                    # print(f"elpased time: {end - start}")
-                    return ind
+            if len(valid_indices) == 0:
+                raise RuntimeError(f"No valid index found for category {category}")
 
-            raise RuntimeError("Something went wrong!")
+            ind = valid_indices[0].item()  # pick the first match
+            return ind
 
         if self.args.attacker_type == "random":
             return self.random_queries[current_step]
+
+        if self.args.attacker_type == "regular":
+            return self.regular_queries[current_step]
 
         if self.args.attacker_type == "SF":
             return self.diff_discriminative_queries[current_step]
@@ -322,6 +363,16 @@ class Attacker():
         queries = indices[samples]
         return queries
 
-        
+    def _init_regular(self, query_binary_path):
+        if not os.path.exists(query_binary_path):
+            raise FileNotFoundError(f"Query binary file not found at {query_binary_path}")
+
+        queries = np.load(query_binary_path, allow_pickle=True)
+        np.random.shuffle(queries)
+
+        if len(queries) < self.args.max_queries:
+            raise ValueError(f"Insufficient queries in the binary file. Expected at least {self.args.max_queries}, got {len(queries)}.")
+
+        return torch.from_numpy(queries[:self.args.max_queries]).long()
 
         
