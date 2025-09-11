@@ -38,7 +38,7 @@ def args_create():
     # @title Arguments
     parser = argparse.ArgumentParser(description='Actor Critic')
 
-    parser.add_argument('--data', default="/data1/sobhan/CEU", type=str, help='Dataset Path')
+    parser.add_argument('--data', default="./data/CEU", type=str, help='Dataset Path')
     parser.add_argument('--episodes', default=29, type=int, metavar='N', help='Number of episodes for training agent.')
     parser.add_argument('--seed', default=3, type=int, help='Seed for reproducibility')
     parser.add_argument('--evaluate', default=True, type=bool, help='Evaluation or Not')
@@ -74,7 +74,8 @@ def args_create():
     # args = parser.parse_args()  # running in command line
     args = parser.parse_args('')  # running in ipynb
 
-    args.results_dir = os.path.join(args.results_dir, "run"+str(len(os.listdir(args.results_dir))))
+    os.makedirs(args.results_dir, exist_ok=True)
+    args.results_dir = os.path.join(args.results_dir, "run" + str(len(os.listdir(args.results_dir))))    
     os.makedirs(args.results_dir)
     os.makedirs(args.results_dir+"/logs")
     os.makedirs(args.results_dir+"/rewards")
@@ -112,7 +113,7 @@ else:
     joblib.dump(binary, cache_path)
 
 # Table that contains MAF (minor allele frequency) values for each position. 
-maf = pd.read_csv(os.path.join("/data1/sobhan/CEU", "MAF.txt"), index_col=0, delim_whitespace=True)
+maf = pd.read_csv(os.path.join("./data/CEU", "MAF.txt"), index_col=0, delim_whitespace=True)
 maf.rename(columns = {'referenceAllele':'major', 'referenceAlleleFrequency':'major_freq', 
                       'otherAllele':'minor', 'otherAlleleFrequency':'minor_freq'}, inplace = True)
 maf["maf"] = np.round(maf["maf"].values, 3)
