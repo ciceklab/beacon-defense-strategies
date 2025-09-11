@@ -13,7 +13,7 @@ from utils import calculate_ind_lrt, calculate_pvalues
 class Beacon():
     error = 0.001
     
-    # Beacon type can be one of the following: baseline, strategic, qbudget, OG-theta, OG-K, random, truth, beacon_strategy
+    # Beacon type can be one of the following: baseline, strategic, qbudget, OG-K, random, truth, beacon_strategy
     def __init__(self, args, case, control, mafs, victim_id):
         self.args = args
         self.mafs = mafs
@@ -50,10 +50,6 @@ class Beacon():
             self.old_pvalues = self.pvalues.clone()
             self.no_change_count = torch.zeros(size=(self.args.beacon_size,), dtype=torch.long)
             self.rare_threshold = 0.1
-
-        if self.args.beacon_type == "OG-theta":
-            # TODO: Make these parameters configurable
-            self.theta = -1000
             
         if self.args.beacon_type == "OG-K":
             self.K = 1
@@ -205,17 +201,9 @@ class Beacon():
 
         if self.args.beacon_type == "rtf":
             return self._real_time_flipping(attacker_action)
-            
-        if self.args.beacon_type == "OG-theta":
-            min_LRT = torch.min(self.beacon_lrts)
-            # Malin's strategy: If the MAF is less than 0.5, return 1, else return 0
-            if min_LRT < self.theta:
-                return 0
-
-            return 1
         
 #         if self.args.beacon_type == "OG-K":
-#             low_control_LRTs, _ = torch.topk(self.control_lrts, k=self.K, largest=False)
+#             low_control_LRTs, _ = torch.topk(self.control_lrts, k=self.K, largest=False)``
 #             mean_LRTs = torch.mean(low_control_LRTs)
             
 #             min_LRT = torch.min(self.beacon_lrts)

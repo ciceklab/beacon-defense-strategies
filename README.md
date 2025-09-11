@@ -18,7 +18,6 @@ Masoud Poorghaffar Aghdam, Sobhan Shukueian Tabrizi, Kerem Ayöz, Erman Ayday, S
 > **Note**: This framework is open for academic use but requires licensing for commercial use. Please refer to the [License](#license) section for more details.
 
 - [Installation](#installation)
-- [Features](#features)
 - [Instructions Manual](#instructions-manual)
 - [Citations](#citations)
 - [License](#license)
@@ -40,6 +39,22 @@ To set up the project environment, run the following steps:
 conda env create --name beacon -f environment.yml
 conda activate beacon
 ```
+
+
+### Data
+
+The data used in this experiment is hosted on GitHub LFS. To load these files, you need to have **Git** and **Git LFS** installed. Then run the following command:
+
+```shell
+git lfs fetch --all
+git lfs pull
+git lfs checkout
+```
+
+If Git or Git LFS is not installed, please refer to the following links:  
+- Install Git: https://git-scm.com/book/en/v2/Getting-Started-Installing-Git  
+- Install Git LFS: https://git-lfs.com/  
+
 ---
 
 ## Instructions Manual
@@ -65,18 +80,18 @@ conda activate beacon
 The following command trains both attacker and beacon models. Specify options like agent type and update frequency.
 
 ```shell
-python main.py --train "both" --episodes 100000 --update_freq 10 --max_queries 100
+python main.py --train "both" --episodes 100000 --update_freq 10 --max_queries 100 --beacon_type="agent"
 ```
 
 #### Key Arguments
 
 ##### Training Setup
--  `--episodes`: Sets the total number of episodes for training.
+-   `--episodes`: Sets the total number of episodes for training.
 -	`--train`: Specifies which agent(s) to train: attacker, beacon, or both.
 -	`--attacker_type`: Type of attacker to train: random, optimal, or agent.
 -	`--beacon_type`: Type of beacon model to use: truth, agent, or beacon_strategy.
 -	`--update_freq`: Frequency of model updates per episode.
--  `--seed`: Random seed for reproducibility.
+-   `--seed`: Random seed for reproducibility.
 
 ##### Environment Setup
 
@@ -96,13 +111,14 @@ python main.py --train "both" --episodes 100000 --update_freq 10 --max_queries 1
 To simulate attacks and defenses, specify desired options such as beacon and attacker types, maximum queries, and user risk level.
 
 ```shell
-python simulate.py --data /path/to/data --evaluate True 
+python simulation.py --data ./data/CEU --evaluate True 
 ```
 
 #### Key Arguments
-- `--attacker_type`: `"random"`, `"optimal"`, or `"agent"`.
-- `--beacon_type`: `"truth"`, `"agent"`, `"baseline"`, etc.
-- `--user_risk`: Controls the level of risk in queries for random attacker.
+-   `--attacker_type`: `"random"`, `"optimal"`, or `"agent"`.
+-   `--beacon_type`: `"truth"`, `"agent"`, `"baseline"`, etc.
+-   `--beacon_agent`: `"td"` for the RL model and `"simple"` for the simple RNN.
+-   `--user_risk`: Controls the level of risk in queries for random attacker.
 -	`--max_queries`: Maximum number of queries per episode.
 
 ---
@@ -112,7 +128,5 @@ python simulate.py --data /path/to/data --evaluate True
 ---
 
 ## License
+This project is licensed under the GNU General Public License v3.0 (GPL-3.0) – see the [LICENSE](LICENSE) file for details.
 
-- **[CC BY-NC-SA 2.0](https://creativecommons.org/licenses/by-nc-sa/2.0/)**
-- © 2024 Beacon Defender Framework.
-- **For commercial use, please contact.
