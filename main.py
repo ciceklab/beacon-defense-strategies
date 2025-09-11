@@ -1,3 +1,21 @@
+# Copyright (C) 2025 CICEKLAB
+#
+# This file is part of the code accompanying the paper "A Reinforcement 
+# Learning-based Approach for Dynamic Privacy Protection in Genomic Data Sharing Beacons".
+#
+# beacon-defense-strategies is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# beacon-defense-strategies is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with beacon-defense-strategies code. If not, see <https://www.gnu.org/licenses/>.
+
 import pandas as pd
 import numpy as np
 import pickle

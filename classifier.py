@@ -15,43 +15,66 @@ class OnlineDefender:
         self.history = []
         self.classifier.eval()
 
-    def process_query(self, new_query):
-        """
-        new_query: tensor of shape (input_dim,)
-        Returns: decision (1 = honest, 0 = lie)
-        """
-        self.eval_mode()
-        # self.classifier.eval()
-        # print(f"New query: {new_query}\n Shape: {new_query.shape}")
-        new_query = new_query.unsqueeze(0).unsqueeze(0)
-        # shape: (1, 1, input_dim)
+    # def process_query(self, new_query):
+    #     """
+    #     new_query: tensor of shape (input_dim,)
+    #     Returns: decision (1 = honest, 0 = lie)
+    #     """
+    #     self.eval_mode()
+    #     new_query = new_query.unsqueeze(0).unsqueeze(0)
 
-        if len(self.history) == 0:
-            # no history yet, prob_before = 0
-            prob_before = torch.tensor([0.0], device=self.device)
-            seq_before = torch.zeros((1, 0, new_query.size(-1)), device=self.device)
-        else:
-            seq_before = torch.stack(self.history, dim=1)  # (1, seq_len, input_dim)
-            prob_before, _ = self.classifier(seq_before)
+    #     if len(self.history) == 0:
+    #         # no history yet, prob_before = 0
+    #         prob_before = torch.tensor([0.0], device=self.device)
+    #         seq_before = torch.zeros((1, 0, new_query.size(-1)), device=self.device)
+    #     else:
+    #         seq_before = torch.stack(self.history, dim=1)  # (1, seq_len, input_dim)
+    #         prob_before, _ = self.classifier(seq_before)
 
-        # add new query
-        seq_after = torch.cat([seq_before, new_query], dim=1)
-        prob_after, _ = self.classifier(seq_after)
+    #     # add new query
+    #     seq_after = torch.cat([seq_before, new_query], dim=1)
+    #     prob_after, _ = self.classifier(seq_after)
 
-        # store the new query in history (regardless of decision)
-        self.history.append(new_query.squeeze(0))  
+    #     # store the new query in history (regardless of decision)
+    #     self.history.append(new_query.squeeze(0))  
 
-        # print(f"Prob before: {prob_before}\n after: {prob_after}\n history: {self.history}")
-
-        # TODO: this may need to be changed
-        # return (prob_after - prob_before)
-        return prob_after.item()
+    #     return prob_after.cpu().item()
 
         # decision rule
         # if (prob_after - prob_before) > self.threshold:
         #     return 0  # lie
         # else:
         #     return 1  # honest
+
+    def process_query(self, new_query):
+        """
+        new_query: tensor of shape (input_dim,)
+        Returns: decision (1 = honest, 0 = lie)
+        """
+        self.eval_mode()
+
+        # (1, 1, input_dim) for single step
+        new_query = new_query.unsqueeze(0).unsqueeze(0).to(self.device)
+
+        if len(self.history) == 0:
+            # initialize hidden state once
+            self.hidden = None
+            prob_before = torch.tensor([0.0], device=self.device)
+        else:
+            # prob_before = last prob_after from previous step
+            prob_before = self.last_prob
+
+        # run classifier only on the new query, passing hidden state forward
+        prob_after, self.hidden = self.classifier(new_query, self.hidden)
+
+        # update history (if you still need it for later inspection)
+        self.history.append(new_query.squeeze(0))
+
+        # cache prob for next step
+        self.last_prob = prob_after
+
+        # return as Python float
+        return prob_after.squeeze().cpu().item()
 
     def eval_mode(self):
         self.classifier.eval()

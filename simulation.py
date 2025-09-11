@@ -175,46 +175,18 @@ def simulate(args, beacon_type, attacker_type, beacon_agent=args.beacon_agent, a
         privaciess = []
         utilitiess = []
         utilitiess2 = []
+        defender = None
 
-        # for t in range(1, args.max_queries+1):
-        #     if attacker_type == "agent" and beacon_type == "agent":
-        #         if args.beacon_agent == "simple":
-        #             classifier = IdentificationRNN(
-        #                 query_dim=18,   # TODO: fix this
-        #                 hidden_dim=64
-        #             )
-        #             defender = OnlineDefender(classifier, 'cpu')
-        #             defender.load_model(beacon_resume)
-        #             beacon_state, rewards, done, pu  = env.step_classifier(defender, attacker_agent=attacker_agent)
-        #         else:  
-        #             beacon_state, rewards, done, pu  = env.step(attacker_agent=attacker_agent, beacon_agent=beacon_agent)
-        #     elif attacker_type == "agent":
-        #         beacon_state, rewards, done, pu  = env.step(attacker_agent=attacker_agent)
-        #     elif beacon_type == "agent":
-        #         if args.beacon_agent == "simple":
-        #             classifier = IdentificationRNN(
-        #                 query_dim=18,   # TODO: fix this
-        #                 hidden_dim=64
-        #             )
-        #             defender = OnlineDefender(classifier, 'cpu')
-        #             defender.load_model(beacon_resume)
-        #             beacon_state, rewards, done, pu  = env.step_classifier(defender)
-        #         else:   
-        #             beacon_state, rewards, done, pu  = env.step(beacon_agent=beacon_agent)
-        #     else:
-        #         beacon_state, rewards, done, pu  = env.step()
+        # Setup defender only if beacon is a simple agent
+        if beacon_type == "agent" and args.beacon_agent == "simple":
+            classifier = IdentificationRNN(
+                query_dim=18,   # TODO: fix get these from parameters
+                hidden_dim=64
+            )
+            defender = OnlineDefender(classifier, 'cuda')
+            defender.load_model(beacon_resume)
+
         for t in range(1, args.max_queries + 1):
-            defender = None
-
-            # Setup defender only if beacon is a simple agent
-            if beacon_type == "agent" and args.beacon_agent == "simple":
-                classifier = IdentificationRNN(
-                    query_dim=18,   # TODO: fix this
-                    hidden_dim=64
-                )
-                defender = OnlineDefender(classifier, 'cpu')
-                defender.load_model(beacon_resume)
-
             # Decide which step function to call
             if defender is not None:
                 if attacker_type == "agent":
@@ -638,123 +610,87 @@ def simulate(args, beacon_type, attacker_type, beacon_agent=args.beacon_agent, a
 #     },
 # ]
 
-evaluations = [
-    {
-        "beacon_type": "agent",
-        "attacker_type": "regular",
-        "beacon_resume": "./weights/SBD",
-        "attacker_resume": None,
-        "query_binary_path": "data/regular_queries_adhd.npy",
-        "user_risk": 1     
-    },
-    {
-        "beacon_type": "agent",
-        "attacker_type": "regular",
-        "beacon_resume": "./weights/GBD",
-        "attacker_resume": None,
-        "query_binary_path": "data/regular_queries_adhd.npy",
-        "user_risk": 1
-    },
-    {
-        "beacon_type": "truth",
-        "attacker_type": "regular",
-        "beacon_resume": None,
-        "attacker_resume": None,
-        "query_binary_path": "data/regular_queries_adhd.npy",
-        "user_risk": 1 
-    },
-    {
-        "beacon_type": "baseline",
-        "attacker_type": "regular",
-        "beacon_resume": None,
-        "attacker_resume": None,
-        "query_binary_path": "data/regular_queries_adhd.npy",
-        "user_risk": 1
-    },
-    {
-        "beacon_type": "qbudget",
-        "attacker_type": "regular",
-        "beacon_resume": None,
-        "attacker_resume": None,
-        "query_binary_path": "data/regular_queries_adhd.npy",
-        "user_risk": 1
-    },
-    {
-        "beacon_type": "random",
-        "attacker_type": "regular",
-        "beacon_resume": None,
-        "attacker_resume": None,
-        "query_binary_path": "data/regular_queries_adhd.npy",
-        "user_risk": 1
-    },
-    {
-        "beacon_type": "strategic",
-        "attacker_type": "regular",
-        "beacon_resume": None,
-        "attacker_resume": None,
-        "query_binary_path": "data/regular_queries_adhd.npy",
-        "user_risk": 1
-        
-    },
-    {
-        "beacon_type": "rtf",
-        "attacker_type": "regular",
-        "beacon_resume": None,
-        "attacker_resume": None,
-        "query_binary_path": "data/regular_queries_adhd.npy",
-        "user_risk": 1
-        
-    },
-    {
-        "beacon_type": "OG-theta",
-        "attacker_type": "regular",
-        "beacon_resume": None,
-        "attacker_resume": None,
-        "query_binary_path": "data/regular_queries_adhd.npy",
-        "user_risk": 1
-    },
-    {
-        "beacon_type": "OG-K",
-        "attacker_type": "regular",
-        "beacon_resume": None,
-        "attacker_resume": None,
-        "query_binary_path": "data/regular_queries_adhd.npy",
-        "user_risk": 1
-    },
-    {
-        "beacon_type": "agent",
-        "beacon_agent": "simple",
-        "attacker_type": "regular",
-        "beacon_resume": "./results/train/run64/weights/Classifier_0.pth",
-        "attacker_resume": None,
-        "query_binary_path": "data/regular_queries_adhd.npy",
-        "user_risk": 1
-    },
-]
-
 # evaluations = [
 #     {
 #         "beacon_type": "agent",
-#         "beacon_agent": "simple",
-#         "attacker_type": "optimal",
-#         "beacon_resume": "./results/train/run64/weights/Classifier_0.pth",
+#         "attacker_type": "regular",
+#         "beacon_resume": "./weights/SBD",
 #         "attacker_resume": None,
-#         "user_risk": 1
+#         "query_binary_path": "data/regular_queries_adhd.npy",
+#         "user_risk": 1     
 #     },
 #     {
 #         "beacon_type": "agent",
-#         "beacon_agent": "simple",
-#         "attacker_type": "agent",
-#         "beacon_resume": "./results/train/run64/weights/Classifier_0.pth",
-#         "attacker_resume": "./weights/SBA.pth",
+#         "attacker_type": "regular",
+#         "beacon_resume": "./weights/GBD",
+#         "attacker_resume": None,
+#         "query_binary_path": "data/regular_queries_adhd.npy",
 #         "user_risk": 1
 #     },
 #     {
-#         "beacon_type": "agent",
-#         "beacon_agent": "simple",
-#         "attacker_type": "agent",
-#         "beacon_resume": "./results/train/run64/weights/Classifier_0.pth",
-#         "attacker_resume": "./weights/GBA.pth",
+#         "beacon_type": "truth",
+#         "attacker_type": "regular",
+#         "beacon_resume": None,
+#         "attacker_resume": None,
+#         "query_binary_path": "data/regular_queries_adhd.npy",
+#         "user_risk": 1 
+#     },
+#     {
+#         "beacon_type": "baseline",
+#         "attacker_type": "regular",
+#         "beacon_resume": None,
+#         "attacker_resume": None,
+#         "query_binary_path": "data/regular_queries_adhd.npy",
+#         "user_risk": 1
+#     },
+#     {
+#         "beacon_type": "qbudget",
+#         "attacker_type": "regular",
+#         "beacon_resume": None,
+#         "attacker_resume": None,
+#         "query_binary_path": "data/regular_queries_adhd.npy",
+#         "user_risk": 1
+#     },
+#     {
+#         "beacon_type": "random",
+#         "attacker_type": "regular",
+#         "beacon_resume": None,
+#         "attacker_resume": None,
+#         "query_binary_path": "data/regular_queries_adhd.npy",
+#         "user_risk": 1
+#     },
+#     {
+#         "beacon_type": "strategic",
+#         "attacker_type": "regular",
+#         "beacon_resume": None,
+#         "attacker_resume": None,
+#         "query_binary_path": "data/regular_queries_adhd.npy",
+#         "user_risk": 1
+        
+#     },
+#     {
+#         "beacon_type": "rtf",
+#         "attacker_type": "regular",
+#         "beacon_resume": None,
+#         "attacker_resume": None,
+#         "query_binary_path": "data/regular_queries_adhd.npy",
+#         "user_risk": 1
+        
+#     },
+#     {
+#         "beacon_type": "OG-theta",
+#         "attacker_type": "regular",
+#         "beacon_resume": None,
+#         "attacker_resume": None,
+#         "query_binary_path": "data/regular_queries_adhd.npy",
+#         "user_risk": 1
+#     },
+#     {
+#         "beacon_type": "OG-K",
+#         "attacker_type": "regular",
+#         "beacon_resume": None,
+#         "attacker_resume": None,
+#         "query_binary_path": "data/regular_queries_adhd.npy",
 #         "user_risk": 1
 #     },
 #     {
@@ -767,6 +703,42 @@ evaluations = [
 #         "user_risk": 1
 #     },
 # ]
+
+evaluations = [
+    {
+        "beacon_type": "agent",
+        "beacon_agent": "simple",
+        "attacker_type": "optimal",
+        "beacon_resume": "./results/train/run64/weights/Classifier_0.pth",
+        "attacker_resume": None,
+        "user_risk": 1
+    },
+    {
+        "beacon_type": "agent",
+        "beacon_agent": "simple",
+        "attacker_type": "agent",
+        "beacon_resume": "./results/train/run64/weights/Classifier_0.pth",
+        "attacker_resume": "./weights/SBA.pth",
+        "user_risk": 1
+    },
+    {
+        "beacon_type": "agent",
+        "beacon_agent": "simple",
+        "attacker_type": "agent",
+        "beacon_resume": "./results/train/run64/weights/Classifier_0.pth",
+        "attacker_resume": "./weights/GBA.pth",
+        "user_risk": 1
+    },
+    {
+        "beacon_type": "agent",
+        "beacon_agent": "simple",
+        "attacker_type": "regular",
+        "beacon_resume": "./results/train/run64/weights/Classifier_0.pth",
+        "attacker_resume": None,
+        "query_binary_path": "data/regular_queries_adhd.npy",
+        "user_risk": 1
+    },
+]
 
 beacon_rewards=[]
 attacker_rewards=[]
@@ -795,5 +767,5 @@ data_dict = {
 }
 
 # Save the dictionary to a pickle file
-with open('./results/binary/regular-adhd.pkl', 'wb') as f:
+with open('./results/binary/simple-classifier7.pkl', 'wb') as f:
     pickle.dump(data_dict, f)
