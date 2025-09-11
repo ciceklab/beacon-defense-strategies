@@ -58,7 +58,7 @@ def args_create():
 
 
     # Environment Setup
-    parser.add_argument('--data', default="/mnt/kerem/CEU", type=str, help='Dataset Path')
+    parser.add_argument('--data', default="./data/CEU", type=str, help='Dataset Path')
     parser.add_argument('--episodes', default=400, type=int, metavar='N', help='Number of episodes for training agent.')
     parser.add_argument('--seed', default=3, type=int, help='Seed for reproducibility')
     parser.add_argument('--a_control_size', default=50, type=int, help='Attack Control group size')
@@ -116,7 +116,7 @@ import os
 import joblib
 
 # Cache file path
-cache_path = "/data1/masoud/binary_cache.joblib"
+cache_path = "../binary_cache.joblib"
 
 # Check if the cached file exists
 if os.path.exists(cache_path):
@@ -125,8 +125,8 @@ if os.path.exists(cache_path):
     binary = joblib.load(cache_path)
 else:
     # If cache doesn't exist, process and save to cache
-    beacon = pd.read_csv(os.path.join("/mnt/kerem/CEU", "Beacon_164.txt"), index_col=0, delim_whitespace=True)
-    reference = pickle.load(open(os.path.join("/mnt/kerem/CEU", "reference.pickle"), "rb"))
+    beacon = pd.read_csv(os.path.join("./data/CEU", "Beacon_164.txt"), index_col=0, delim_whitespace=True)
+    reference = pickle.load(open(os.path.join("./data/CEU", "reference.pickle"), "rb"))
     binary = np.logical_and(beacon.values != reference, beacon.values != "NN").astype(int)
     
     # Save the processed binary data to cache for future use
@@ -134,7 +134,7 @@ else:
 
 
 # Table that contains MAF (minor allele frequency) values for each position. 
-maf = pd.read_csv(os.path.join("/mnt/kerem/CEU", "MAF.txt"), index_col=0, delim_whitespace=True)
+maf = pd.read_csv(os.path.join("./data/CEU", "MAF.txt"), index_col=0, delim_whitespace=True)
 maf.rename(columns = {'referenceAllele':'major', 'referenceAlleleFrequency':'major_freq', 
                       'otherAllele':'minor', 'otherAlleleFrequency':'minor_freq'}, inplace = True)
 maf["maf"] = np.round(maf["maf"].values, 3)

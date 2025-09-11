@@ -104,8 +104,8 @@ if os.path.exists(cache_path):
     binary = joblib.load(cache_path)
 else:
     # If cache doesn't exist, process and save to cache
-    beacon = pd.read_csv(os.path.join("/mnt/kerem/CEU", "Beacon_164.txt"), index_col=0, delim_whitespace=True)
-    reference = pickle.load(open(os.path.join("/mnt/kerem/CEU", "reference.pickle"), "rb"))
+    beacon = pd.read_csv(os.path.join("./data/CEU", "Beacon_164.txt"), index_col=0, delim_whitespace=True)
+    reference = pickle.load(open(os.path.join("./data/CEU", "reference.pickle"), "rb"))
     binary = np.logical_and(beacon.values != reference, beacon.values != "NN").astype(int)
     
     # Save the processed binary data to cache for future use
@@ -465,37 +465,6 @@ def simulate(args, beacon_type, attacker_type, beacon_agent=args.beacon_agent, a
 
 # evaluations = [
 #     {
-#         "beacon_type": "OG-theta",
-#         "attacker_type": "optimal",
-#         "beacon_resume": "./results/train/",
-#         "attacker_resume": None,
-#         "user_risk": 1
-#     },
-#     {
-#         "beacon_type": "OG-theta",
-#         "attacker_type": "agent",
-#         "beacon_resume": None,
-#         "attacker_resume": "./weights/SBA.pth",
-#         "user_risk": 1
-#     },
-#     {
-#         "beacon_type": "OG-theta",
-#         "attacker_type": "agent",
-#         "beacon_resume": None,
-#         "attacker_resume": "./weights/GBA.pth",
-#         "user_risk": 1
-#     },
-#     {
-#         "beacon_type": "OG-theta",
-#         "attacker_type": "random",
-#         "beacon_resume": None,
-#         "attacker_resume": None,
-#         "user_risk": 1
-#     },
-# ]
-
-# evaluations = [
-#     {
 #         "beacon_type": "OG-K",
 #         "attacker_type": "optimal",
 #         "beacon_resume": "./results/train/",
@@ -593,14 +562,6 @@ def simulate(args, beacon_type, attacker_type, beacon_agent=args.beacon_agent, a
         
 #     },
 #     {
-#         "beacon_type": "OG-theta",
-#         "attacker_type": "regular",
-#         "beacon_resume": None,
-#         "attacker_resume": None,
-#         "query_binary_path": "./data/regular_queries.npy",
-#         "user_risk": 1
-#     },
-#     {
 #         "beacon_type": "OG-K",
 #         "attacker_type": "regular",
 #         "beacon_resume": None,
@@ -676,14 +637,6 @@ def simulate(args, beacon_type, attacker_type, beacon_agent=args.beacon_agent, a
 #         "query_binary_path": "data/regular_queries_adhd.npy",
 #         "user_risk": 1
         
-#     },
-#     {
-#         "beacon_type": "OG-theta",
-#         "attacker_type": "regular",
-#         "beacon_resume": None,
-#         "attacker_resume": None,
-#         "query_binary_path": "data/regular_queries_adhd.npy",
-#         "user_risk": 1
 #     },
 #     {
 #         "beacon_type": "OG-K",
