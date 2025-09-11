@@ -74,10 +74,10 @@ def args_create():
     # Training Setup
     parser.add_argument('--train', default="attacker", choices=["attacker", "beacon", "both"], type=str, help='Train side!')
     
-    parser.add_argument('--attacker_type', default="random", choices=["random", "optimal", "agent"], type=str, help='Type of the attacker')
-    parser.add_argument('--beacon_type', default="agent", choices=["random", "agent", "truth", "beacon_strategy"], type=str, help='Type of the beacon')
+    parser.add_argument('--attacker_type', default="agent", choices=["random", "optimal", "agent"], type=str, help='Type of the attacker')
+    parser.add_argument('--beacon_type', default="truth", choices=["random", "agent", "truth", "beacon_strategy"], type=str, help='Type of the beacon')
 
-    parser.add_argument('--beacon_agent', default="simple", choices=["td", "ppo", "simple"], type=str, help='Type of the beacon')
+    parser.add_argument('--beacon_agent', default="td", choices=["td", "ppo", "simple"], type=str, help='Type of the beacon')
 
     parser.add_argument('--pop_reset_freq', default=100000000, type=int, help='Reset Population Frequency (Epochs)')
     parser.add_argument('--update_freq', default=10, type=int, help='Train Agent model frequency')
@@ -89,7 +89,7 @@ def args_create():
     parser.add_argument('--resume-attacker', default=None, type=str, metavar='PATH', help='path to latest checkpoint (default: none)')
     # parser.add_argument('--resume-beacon', default="/data6/sobhan/Beacons/results/train/run99/weights/25000", type=str, metavar='PATH', help='path to latest checkpoint (default: none)')
 
-    # parser.add_argument('--resume-beacon', default='/data6/sobhan/Beacons/results/train/run77/weights', type=str, metavar='PATH', help='path to latest checkpoint (default: none)')
+    parser.add_argument('--resume-beacon', default=None, type=str, metavar='PATH', help='path to latest checkpoint (default: none)')
 
 
     parser.add_argument('--results-dir', default='./results/train', type=str, metavar='PATH', help='path to cache (default: none)')
@@ -98,7 +98,11 @@ def args_create():
     args = parser.parse_args()  # running in command line
     # args = parser.parse_args('')  # running in ipynb
 
-    args.results_dir = os.path.join(args.results_dir, "run"+str(len(os.listdir(args.results_dir))))
+    os.makedirs(args.results_dir, exist_ok=True)
+    args.results_dir = os.path.join(
+        args.results_dir,
+        "run" + str(len(os.listdir(args.results_dir)))
+    )
     os.makedirs(args.results_dir)
     os.makedirs(args.results_dir+"/logs")
     os.makedirs(args.results_dir+"/rewards")
@@ -116,7 +120,7 @@ import os
 import joblib
 
 # Cache file path
-cache_path = "../binary_cache.joblib"
+cache_path = "./binary_cache.joblib"
 
 # Check if the cached file exists
 if os.path.exists(cache_path):
